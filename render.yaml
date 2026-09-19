@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: taleprints
+    name: once-upon-a-play
     runtime: node
     plan: free
     buildCommand: npm ci --include=dev && npm run build

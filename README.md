@@ -1,8 +1,8 @@
-# Taleprints
+# Once upon a play
 
 **Step into a fairy tale and leave your own story behind.**
 
-Taleprints is an interactive story game for children aged 9–12. Pick a role,
+Once upon a play is an interactive story game for children aged 9–12. Pick a role,
 explore an illustrated map, talk to its characters, and make choices that shape
 the ending. A drawing can become a new character in the story. When the tale is
 finished, the child can read and save an illustrated storybook as a PDF.

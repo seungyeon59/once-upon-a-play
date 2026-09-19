@@ -22,7 +22,7 @@ export function MapSelect({ tales, hasSave, onStart, onResume }: MapSelectProps)
   return (
     <main className="maps">
       <header className="maps__head">
-        <h1>Taleprints</h1>
+        <h1>Once upon a play</h1>
         <p>Pick a world. Talk to the people in it. The story is whatever you two decide.</p>
       </header>
 
