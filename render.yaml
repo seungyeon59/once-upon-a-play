@@ -1,8 +1,0 @@
-services:
-  - type: web
-    name: once-upon-a-play
-    runtime: node
-    plan: free
-    buildCommand: npm ci --include=dev && npm run build
-    startCommand: npm start
-    healthCheckPath: /api/health

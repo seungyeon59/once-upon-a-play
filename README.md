@@ -50,24 +50,25 @@ The built client and API are then served from `http://localhost:8787`.
 
 ## Deploy and share
 
-The client and API need to run together. A static file upload alone cannot
-provide the character conversations. `render.yaml` defines a single Render
-web service that builds the client and serves both parts from one HTTPS URL.
+The client and API need to deploy together. `vercel.json` configures the Vite
+build, while `api/chat.ts` and `api/health.ts` expose the Express API as Vercel
+Functions on the same HTTPS origin.
 
 1. Push this project to a GitHub repository. `.gitignore` excludes the API key,
    dependencies, build output, logs, and project reference PDFs.
-2. In Render, select **New → Blueprint**, connect the repository, and deploy
-   using `render.yaml`.
-3. Share the resulting `https://…onrender.com` URL after the health check passes.
+2. In Vercel, select **Add New → Project**, import the repository, and deploy.
+   The Vite framework, build command, and output directory are set in
+   `vercel.json`.
+3. Confirm `/api/health` returns `{"ok":true,...}`, then share the generated
+   `https://…vercel.app` URL.
 
 The deployed demo uses scripted replies unless `ANTHROPIC_API_KEY` is added as
-a **secret environment variable in Render**. Do not add the key to the repository.
-With an API key, the public server limits requests to 30 per IP per hour as a
-basic cost guard. A wider release needs stronger account-based limits.
+a **secret environment variable in Vercel**. Do not add the key to the repository.
+With an API key, each function instance applies a basic limit of 30 requests
+per IP per hour. A wider release needs a shared rate limiter and authentication.
 
 Production chat logs are disabled by default. Story progress and scanned
-drawings are stored in each visitor's browser, not a shared account. Free
-Render services may take longer to respond after a period of inactivity.
+drawings are stored in each visitor's browser, not a shared account.
 
 ## Project structure
 
@@ -78,7 +79,8 @@ Render services may take longer to respond after a period of inactivity.
 | `src/state/` | Story progress, choices, characters, and local saves |
 | `src/ui/` | Map selection, conversations, scanner, ending, and storybook |
 | `server/` | Express API, AI integration, scripted replies, and safety filters |
-| `render.yaml` | One-service deployment configuration |
+| `api/` | Vercel Function entry points for chat and health |
+| `vercel.json` | Vercel build and function configuration |
 
 Authored choices move the story between scenes and set flags. AI-generated
 conversation suggestions can only say a line; they cannot change the plot.
