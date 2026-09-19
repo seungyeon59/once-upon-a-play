@@ -1,0 +1,10 @@
+node_modules/
+dist/
+server/logs/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+WrightHere.pdf
+동화 캐릭터 스토리 웹 기획안.pdf
