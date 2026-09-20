@@ -114,6 +114,7 @@ test('an imagined scene changes the visible story, flags, save, and later dialog
   assert.equal(state.imaginedScene?.title, 'The Starlit Bridge')
   assert.deepEqual(state.imaginedScene?.map, { theme: 'night', landmark: 'bridge' })
   assert.equal(state.flags.wolfFriendly, true)
+  assert.equal(state.coins, 3)
   assert.equal(state.log.at(-1)?.text, imagineResponse.scene.narration)
   assert.deepEqual(state.log.at(-1)?.imaginedScene, imagineResponse.scene)
   assert.match(localStorage.getItem('tale-weaver:v1') ?? '', /Starlit Bridge/)
@@ -131,6 +132,7 @@ test('a child choice carries the generated story memory into the next scene', as
   assert.equal(request.idea, 'Cross the bridge')
   assert.deepEqual(request.storyState.discoveries, ['The bridge glows at night'])
   assert.equal(useStory.getState().log.at(-2)?.text, 'Cross the bridge')
+  assert.equal(useStory.getState().coins, 3)
 })
 
 test('moving and resizing a prop updates the saved scene within bounds', () => {

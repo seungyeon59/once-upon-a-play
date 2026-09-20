@@ -5,6 +5,7 @@ import { checkChildInput, filterCharacterReply } from './safety.ts'
 import { BACKDROPS, PROPS, BACKDROP_IDS, PROP_IDS } from '../src/content/mapAssets.ts'
 import { validateScenePlan } from './scenePlan.ts'
 import { safeCompanionProfiles } from './customCharacter.ts'
+import { mapForKeywords } from '../src/content/keywordMaps.ts'
 
 const ALLOWED_FLAGS = new Set(['wolfKnows', 'wolfCurious', 'wolfFriendly', 'tookFlowers', 'warned', 'askedGray', 'introduced', 'invited', 'snuck', 'raced'])
 const TOOL = {
@@ -85,6 +86,8 @@ export function createImagineHandler(client: Anthropic | null, model: string) {
         }
       } catch (error) { console.error('[imagine] story generation failed:', error) }
     }
+    const keywordMap = mapForKeywords(verdict.text)
+    if (keywordMap) draft = { ...draft, backdropId: keywordMap.backdropId, setting: keywordMap.label }
     const safe = filterCharacterReply(draft.narration, 'A gentle new path opens before you. What happens next?')
     const title = filterCharacterReply(draft.title, 'A new turn in the tale').text.trim().slice(0, 80) || 'A new turn in the tale'
     const setting = filterCharacterReply(draft.setting, sceneTitle).text.trim().slice(0, 180) || sceneTitle

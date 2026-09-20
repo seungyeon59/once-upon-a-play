@@ -465,7 +465,7 @@ export const useStory = create<StoryStore>((set, get) => ({
       const current = get()
       if (current.sceneId !== state.sceneId || current.taleId !== state.taleId) return
       const sceneEntry = { ...entry('narration', result.scene.narration, undefined, current.sceneId), imaginedScene: result.scene }
-      const next: Saved = { ...current, imaginedScene: result.scene, characterPositions: { ...current.characterPositions, [current.sceneId]: {} }, flags: { ...current.flags, ...result.setFlags }, log: [...current.log, entry('choice', verdict.text, 'You', current.sceneId), sceneEntry] }
+      const next: Saved = { ...current, coins: current.coins + 3, imaginedScene: result.scene, characterPositions: { ...current.characterPositions, [current.sceneId]: {} }, flags: { ...current.flags, ...result.setFlags }, log: [...current.log, entry('choice', verdict.text, 'You', current.sceneId), sceneEntry] }
       set({ ...next, imagineNotice: null, activeCharacterId: null })
       persist(next)
     } catch (error) {

@@ -12,6 +12,7 @@ import { loadBackground } from '../state/imageCache.ts'
 function prebuiltImage(scene: ImaginedScene): string {
   const map = scene.map
   if (!map.backdropId) throw new Error('Prebuilt backdrop missing')
+  if (map.backdropId === 'steelhacks') return '/maps/steelhacks-xiii.png'
   const background = renderToStaticMarkup(<BackdropArt id={map.backdropId} />)
     .replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" ')
   const props = (map.props ?? []).map((prop) => {

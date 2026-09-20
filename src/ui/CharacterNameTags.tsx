@@ -32,7 +32,8 @@ export function CharacterNameTags({ cast, characters, playerRole, onMove }: { ca
       const character = characters.find((item) => item.id === placement.characterId)
       if (!character) return null
       const position = preview?.id === character.id ? preview : placement
-      return <button key={character.id} type="button" className="character-name-tag" style={{ left: `${position.x * 100}%`, top: `${position.y * 100}%` }} aria-label={`${character.id === playerRole ? 'Me: ' : ''}${character.name}. Drag to move character.`} title={`Drag to move ${character.name}`} onPointerDown={(event) => { if (event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); dragRef.current = { id: character.id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, x: placement.x, y: placement.y } }} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish}>{character.id === playerRole ? `Me: ${character.name}` : character.name}</button>
+      const label = character.id === playerRole ? (playerRole === 'visitor' ? 'Me' : `Me: ${character.name}`) : character.name
+      return <button key={character.id} type="button" className="character-name-tag" style={{ left: `${position.x * 100}%`, top: `${position.y * 100}%` }} aria-label={`${label}. Drag to move character.`} title={`Drag to move ${character.name}`} onPointerDown={(event) => { if (event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); dragRef.current = { id: character.id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, x: placement.x, y: placement.y } }} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish}>{label}</button>
     })}
   </div>
 }

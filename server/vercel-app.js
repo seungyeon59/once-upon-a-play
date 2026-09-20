@@ -626,6 +626,7 @@ var SPEAK_TOOL = {
 
 // src/content/mapAssets.ts
 var BACKDROPS = {
+  steelhacks: "The official SteelHacks XIII neon Pittsburgh skyline",
   forest: "A sunlit fairy-tale forest with a winding path",
   meadow: "A flower-filled open meadow",
   river: "A sparkling riverside with a gentle shore",
@@ -751,6 +752,25 @@ function validateScenePlan(value, castIds) {
   return { backdropId, props: decorations, cast: placements };
 }
 
+// src/content/keywordMaps.ts
+var KEYWORD_MAP_RULES = [
+  { backdropId: "steelhacks", label: "SteelHacks XIII in Pittsburgh", keywords: ["steelhacks", "steel hacks", "\uC2A4\uD2F8\uD575\uC2A4", "hackathon", "\uD574\uCEE4\uD1A4", "hacker portal", "pitt hack", "university of pittsburgh", "pittsburgh university", "pitts university", "pitts univ", "pitt university", "pitt campus", "\uD53C\uCE20\uBC84\uADF8 \uB300\uD559\uAD50", "\uD53C\uD2B8 \uB300\uD559\uAD50", "pitt csc", "pitt computer science club", "pitt sci", "school of computing and information", "major league hacking", "mlh"] },
+  { backdropId: "city", label: "Pittsburgh technology district", keywords: ["pittsburgh", "\uD53C\uCE20\uBC84\uADF8", "pgh", "carnegie mellon", "cmu", "carnegie mellon university", "\uCE74\uB124\uAE30 \uBA5C\uB860", "\uCE74\uB124\uAE30\uBA5C\uB860", "pnc", "compound", "financial hack", "\uAE08\uC735", "bny", "bank of new york mellon", "stevens capital management", "scm", "cgi", "marinus analytics"] },
+  { backdropId: "laboratory", label: "AI and science laboratory", keywords: ["nvidia", "\uC5D4\uBE44\uB514\uC544", "nemotron", "\uB124\uBAA8\uD2B8\uB860", "beyond the chatbot", "anthropic", "\uC564\uD2B8\uB85C\uD53D", "claude", "\uD074\uB85C\uB4DC", "wolfram", "\uC6B8\uD504\uB78C", "lanxess", "xtract", "signal-to-insight", "artificial intelligence", "\uC778\uACF5\uC9C0\uB2A5", "ai lab"] },
+  { backdropId: "theater", label: "Voice and sound studio", keywords: ["elevenlabs", "eleven labs", "\uC77C\uB808\uBE10\uB7A9\uC2A4", "out loud", "text to speech", "speech to text", "voice agent", "dubbing", "sound effects", "\uC74C\uC131", "\uB354\uBE59"] },
+  { backdropId: "hospital", label: "Pittsburgh health innovation center", keywords: ["upmc", "healthcare", "health care", "medical center", "hospital", "clinic", "\uC758\uB8CC", "\uBCD1\uC6D0"] },
+  { backdropId: "garden", label: "Startup seed garden", keywords: ["pear vc", "afore capital", "seed round", "venture capital", "startup", "fundable hack", "\uBCA4\uCC98 \uCE90\uD53C\uD0C8", "\uC2A4\uD0C0\uD2B8\uC5C5"] },
+  { backdropId: "hackathon", label: "Collaborative makerspace", keywords: ["vercel", "posthog", "press start", "cold start", "no wrapper", "best game", "beginner hack", "cloud technologies", "makerspace", "coding event"] },
+  { backdropId: "classroom", label: "University classroom", keywords: ["university", "college", "campus", "student", "computer science"] }
+];
+function normalize(value) {
+  return value.toLocaleLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9가-힣]+/g, " ").replace(/\s+/g, " ").trim();
+}
+function mapForKeywords(value) {
+  const normalized = normalize(value);
+  return KEYWORD_MAP_RULES.find((rule) => rule.keywords.some((keyword) => normalized.includes(normalize(keyword))));
+}
+
 // server/imagine.ts
 var ALLOWED_FLAGS = /* @__PURE__ */ new Set(["wolfKnows", "wolfCurious", "wolfFriendly", "tookFlowers", "warned", "askedGray", "introduced", "invited", "snuck", "raced"]);
 var TOOL = {
@@ -832,6 +852,8 @@ function createImagineHandler(client2, model) {
         console.error("[imagine] story generation failed:", error);
       }
     }
+    const keywordMap = mapForKeywords(verdict.text);
+    if (keywordMap) draft = { ...draft, backdropId: keywordMap.backdropId, setting: keywordMap.label };
     const safe = filterCharacterReply(draft.narration, "A gentle new path opens before you. What happens next?");
     const title = filterCharacterReply(draft.title, "A new turn in the tale").text.trim().slice(0, 80) || "A new turn in the tale";
     const setting = filterCharacterReply(draft.setting, sceneTitle).text.trim().slice(0, 180) || sceneTitle;

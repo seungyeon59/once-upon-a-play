@@ -15,7 +15,7 @@ async function invoke(idea: string) {
 test('Claude selects prebuilt assets and character positions', async () => {
   const client = { messages: { create: async () => ({ content: [{ type: 'tool_use', input: { title: 'A space hackathon', narration: 'The team builds a rocket among the stars.', setting: 'A makerspace in orbit', backdropId: 'space', props: [{ id: 'laptop', x: 0.3, y: 0.72, label: 'Laptop', result: 'It shows a star map.' }], cast: [{ characterId: 'red', x: 0.4, y: 0.8 }], actions: [{ characterId: 'red', action: 'walk', x: 0.7, y: 0.8 }, { characterId: 'unknown', action: 'gesture' }, { characterId: 'red', action: 'walk', x: 3, y: 0.8 }], exitLabel: 'Visit the moon', setFlags: { wolfFriendly: true, inventedFlag: true } } }] }) } } as unknown as Anthropic
   let payload: unknown
-  await createImagineHandler(client, 'test')({ body: { idea: 'Go to a hackathon in space', cast: ['red'] } } as Request, { json(value: unknown) { payload = value } } as Response)
+  await createImagineHandler(client, 'test')({ body: { idea: 'Go build among the stars', cast: ['red'] } } as Request, { json(value: unknown) { payload = value } } as Response)
   const result = payload as { scene: { actions: Array<{ characterId: string; action: string; x: number }>; map: { backdropId: string; props: Array<{ id: string }>; cast: Array<{ characterId: string }> } }; setFlags: Record<string, boolean>; source: string }
   assert.equal(result.scene.map.backdropId, 'space')
   assert.equal(result.scene.map.props[0].id, 'laptop')
@@ -38,6 +38,13 @@ test('custom companion goals shape generated scene suggestions', async () => {
   const scene = (payload as { scene: { narration: string; choices: string[] } }).scene
   assert.match(scene.narration, /Sunny/)
   assert.ok(scene.choices.some((choice) => choice.includes('building tiny bridges')))
+})
+
+test('SteelHacks keywords override the model with the official event backdrop', async () => {
+  const client = { messages: { create: async () => ({ content: [{ type: 'tool_use', input: { title: 'Build time', narration: 'The team starts building.', setting: 'A room', backdropId: 'classroom', props: [], cast: [], exitLabel: 'Keep building', choices: ['Open a laptop', 'Ask a mentor'], storyState: { discoveries: [], promises: [], openThreads: [] }, ending: false, actions: [], setFlags: {} } }] }) } } as unknown as Anthropic
+  let payload: unknown
+  await createImagineHandler(client, 'test')({ body: { idea: 'Go to SteelHacks at the University of Pittsburgh' } } as Request, { json(value: unknown) { payload = value } } as Response)
+  assert.equal((payload as { scene: { map: { backdropId: string } } }).scene.map.backdropId, 'steelhacks')
 })
 
 test('Claude can combine a sky backdrop with a classroom prop', async () => {

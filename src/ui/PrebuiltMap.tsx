@@ -4,6 +4,7 @@ import type { BackdropId } from '../content/mapAssets.ts'
 import { PropArt } from './PropArt.tsx'
 
 const colors: Record<BackdropId, [string, string, string]> = {
+  steelhacks: ['#071f54', '#69139a', '#161349'],
   forest: ['#c5dbce', '#709878', '#3f6855'], meadow: ['#d7e8da', '#a7c58a', '#70965e'],
   river: ['#c7e6e4', '#76aaa1', '#477b73'], mountain: ['#d5e3eb', '#91a9ad', '#526f78'],
   sky: ['#80c3eb', '#d6f1fb', '#fff9e9'], ocean: ['#358fa8', '#1b718c', '#14566e'],
@@ -27,6 +28,7 @@ const colors: Record<BackdropId, [string, string, string]> = {
 const stars = Array.from({ length: 21 }, (_, i) => ({ x: (i * 137 + 42) % 1200, y: (i * 79 + 53) % 540, r: i % 3 === 0 ? 4 : 2 }))
 
 export function BackdropArt({ id }: { id: BackdropId }) {
+  if (id === 'steelhacks') return <img className="prebuilt-art prebuilt-art--steelhacks" src="/maps/steelhacks-xiii.png" alt="" />
   const [top, middle, bottom] = colors[id]
   const outdoor = ['forest', 'meadow', 'river', 'mountain', 'castle', 'village', 'desert', 'snowfield', 'city', 'garden', 'island', 'playground', 'farm', 'beach', 'jungle', 'swamp', 'volcano'].includes(id)
   return <svg className="prebuilt-art" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">

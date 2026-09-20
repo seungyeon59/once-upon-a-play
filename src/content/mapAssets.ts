@@ -1,5 +1,6 @@
 /** Art assets the scene planner may use. IDs are stable so saved stories survive. */
 export const BACKDROPS = {
+  steelhacks: 'The official SteelHacks XIII neon Pittsburgh skyline',
   forest: 'A sunlit fairy-tale forest with a winding path',
   meadow: 'A flower-filled open meadow',
   river: 'A sparkling riverside with a gentle shore',

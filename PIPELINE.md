@@ -74,12 +74,27 @@ API 키는 모두 Express 서버의 환경변수로 보관합니다. 코드상 �
 
 - **로컬 개발:** `npm ci` 후 `npm run dev`. Vite가 `localhost:5173`에서 React 앱을 제공하고 `/api` 요청을 `localhost:8787`의 Express 서버로 프록시합니다.
 - **프로덕션 빌드:** `npm run build`가 TypeScript 검사, Express 앱 번들 생성, Vite 클라이언트 빌드를 수행합니다. `npm start`는 빌드된 클라이언트와 API를 같은 Express 서버에서 제공합니다.
-- **Vercel:** `vercel.json`은 Vite 빌드와 `api/*.js` 함수 진입점을 설정합니다. 현재 저장소에는 `chat`, `imagine`, `background`, `health` 진입점이 있습니다.
+- **Vercel:** `vercel.json`은 Vite 빌드와 `api/*.js` 함수 진입점을 설정합니다. 현재 저장소에는 `chat`, `imagine`, `narrate`, `health` 진입점이 있습니다.
 - **서버 비밀값:** `ANTHROPIC_API_KEY`는 대화·장면 생성, `REPLICATE_API_TOKEN`은 배경 생성, `ELEVENLABS_API_KEY`는 음성 생성에 사용됩니다. 환경변수는 서버에서 읽으며 클라이언트에 포함하지 않습니다.
+
+## SteelHacks 키워드 맵
+
+`src/content/keywordMaps.ts`가 사용자 이야기 프롬프트를 아래 맵에 결정적으로 연결합니다. AI가 다른 배경을 골라도 이 표의 키워드가 우선합니다.
+
+| 키워드 묶음 | 맵 |
+| --- | --- |
+| SteelHacks, hackathon, Pitt, University of Pittsburgh, Pitt CSC, Pitt SCI, MLH | 공식 SteelHacks XIII Pittsburgh 이미지 |
+| Pittsburgh, PGH, CMU, Carnegie Mellon, PNC, BNY, SCM, CGI, Marinus | Pittsburgh 기술 지구 도시 맵 |
+| NVIDIA, Nemotron, Anthropic, Claude, Wolfram, LANXESS, AI | AI·과학 연구실 맵 |
+| ElevenLabs, voice, speech, dubbing, sound effects | 음성·사운드 스튜디오 맵 |
+| UPMC, healthcare, hospital, clinic | 의료 혁신 센터 맵 |
+| Pear VC, Afore Capital, Seed Round, startup | 스타트업 씨앗 정원 맵 |
+| Vercel, PostHog, Press Start, Cold Start, No Wrapper, cloud, makerspace | 협업 메이커스페이스 맵 |
+| 일반 university, college, campus, student, computer science | 대학교 교실 맵 |
 
 ## 현재 구현 범위와 확인할 점
 
 - 플레이 가능한 동화는 1개이며, 나머지 지도 카드는 준비 중으로 표시됩니다. 지도는 SVG·Pixi와 2D 타일로 구현되어 있습니다.
 - 대화·장면 입력과 생성 결과에 안전 검사를 적용합니다. 서버의 IP별 시간 제한은 인스턴스 메모리에 저장되어 서버 전체에 공유되지 않습니다.
-- 로컬 Express 서버에는 `/api/narrate`가 등록되어 있지만, 현재 `api/` 폴더에는 Vercel용 `narrate` 진입점이 없습니다. 따라서 Vercel 배포에서 읽어주기 기능을 사용하려면 해당 진입점을 추가해야 합니다.
+- `/api/narrate`는 로컬 Express와 Vercel 배포에서 모두 사용할 수 있습니다.
 - `README.md`의 일부 설명은 현재 코드와 다릅니다. 예를 들어 마지막 문단은 음성이 아직 없는 것으로 쓰여 있지만 로컬 서버에는 음성 기능이 구현되어 있습니다. 이 문서는 현재 소스 코드를 기준으로 작성했습니다.

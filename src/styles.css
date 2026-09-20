@@ -137,6 +137,7 @@ button { font: inherit; }
 .stage-generated-map svg { width: 100%; height: 100%; }
 .stage-generated-image { width: 100%; height: 100%; object-fit: cover; display: block; }
 .prebuilt-art { display: block; width: 100%; height: 100%; }
+.prebuilt-art--steelhacks { object-fit: cover; object-position: center; }
 .prebuilt-controls { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 .prebuilt-exit { position: absolute; pointer-events: auto; cursor: pointer; }
 .prebuilt-prop-container { position: absolute; width: clamp(4.5rem, 8vw, 6.25rem); height: clamp(4.5rem, 8vw, 6.25rem); pointer-events: none; transform-origin: center; }
