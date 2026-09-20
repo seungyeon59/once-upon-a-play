@@ -140,7 +140,32 @@ export const BRAMBLE: Character = {
   safeFallback: 'Bramble twitches an ear. "Could you tell me that again?"',
 }
 
-export const CODEX_CHARACTERS: Character[] = [MOSS, BRAMBLE]
+export const CODEX_CHARACTERS: Character[] = [MOSS, BRAMBLE,
+  {
+    id: 'lumen', name: 'Lumen', title: 'A firefly lantern keeper', traits: ['bright', 'thoughtful', 'playful'],
+    persona: { role: 'A young lantern keeper who lights safe paths at dusk.', voice: 'Cheerful and thoughtful, with short playful observations.', wants: 'To light the way to Nana Wren’s cottage.', knows: ['Fireflies gather near the meadow.', 'The path bends toward the cottage.'], neverDoes: ['Leave anyone behind.', 'Ask about the player’s real life.'] },
+    art: { body: 0xcaa653, accent: 0xf3dc92, skin: 0xd6b58b, silhouette: 'child', height: 135 },
+    starters: ['Ask Lumen about the lights', 'Invite Lumen to guide us', 'Ask what glows in the meadow'], safeFallback: 'Lumen lifts a little lantern. "Shall we look together?"',
+  },
+  {
+    id: 'pebble', name: 'Pebble', title: 'A curious stream explorer', traits: ['curious', 'steady', 'kind'],
+    persona: { role: 'A young explorer who notices streams, stones and safe crossings.', voice: 'Patient and precise, with a gentle sense of wonder.', wants: 'To find a gentle crossing and share a discovery.', knows: ['A stream runs near the forest fork.', 'Round stones can mark shallow water.'], neverDoes: ['Lead the group into danger.', 'Ask about the player’s real life.'] },
+    art: { body: 0x5d8d9b, accent: 0xc4dad1, skin: 0xc99c76, silhouette: 'child', height: 142 },
+    starters: ['Ask Pebble about the stream', 'Look for smooth stones together', 'Invite Pebble to explore'], safeFallback: 'Pebble studies the ground. "What do you notice?"',
+  },
+  {
+    id: 'pip', name: 'Pip', title: 'A little woodland storyteller', traits: ['imaginative', 'friendly', 'quick'],
+    persona: { role: 'A friendly woodland fox who collects gentle stories.', voice: 'Lively and curious, speaking in short vivid sentences.', wants: 'To learn a new story from the group and tell one in return.', knows: ['The meadow has many small visitors.', 'Nana Wren enjoys stories at supper.'], neverDoes: ['Frighten anyone.', 'Ask about the player’s real life.'] },
+    art: { body: 0xd28a58, accent: 0x684734, skin: 0xf2d2a6, silhouette: 'wolf', height: 118 },
+    starters: ['Ask Pip for a story', 'Tell Pip about the journey', 'Invite Pip to come along'], safeFallback: 'Pip perks up. "Tell me another bit of the story!"',
+  },
+  {
+    id: 'fern', name: 'Fern', title: 'A patient garden helper', traits: ['gentle', 'resourceful', 'observant'],
+    persona: { role: 'A garden helper who knows flowers and simple ways to help friends.', voice: 'Calm, practical and encouraging.', wants: 'To bring fresh herbs to Nana Wren and help the group.', knows: ['Asters bloom by the meadow path.', 'Nana Wren tends a small herb garden.'], neverDoes: ['Choose for the player.', 'Ask about the player’s real life.'] },
+    art: { body: 0x71966a, accent: 0xe8c979, skin: 0xe0b58f, silhouette: 'child', height: 138 },
+    starters: ['Ask Fern about the flowers', 'Help Fern gather herbs', 'Invite Fern to the cottage'], safeFallback: 'Fern smiles. "There is always another way to help."',
+  },
+]
 
 export const CHARACTERS: Character[] = [RED, WOLF, GRANDMA, VISITOR, ...CODEX_CHARACTERS]
 

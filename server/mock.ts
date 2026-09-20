@@ -1,4 +1,5 @@
 import type { ChatRequest, ChatResponse } from '../src/state/types.ts'
+import { safeCompanionProfiles } from './customCharacter.ts'
 
 /**
  * Deterministic stand-in for the LLM so the whole loop is playable with no API
@@ -80,11 +81,13 @@ function hash(text: string): number {
 export function mockReply(request: ChatRequest): ChatResponse {
   if (request.customCharacter?.id === request.characterId) {
     const name = request.customCharacter.name
+    const talent = request.customCharacter.talent
+    const goal = request.customCharacter.goal
     return {
-      reply: `${name} looks up at you. "I am glad you drew me into this story. What should we explore together?"`,
+      reply: `${name} looks up at you. "I hope to ${goal ?? 'explore together'}. Can I help with ${talent ?? 'the next discovery'}?"`,
       suggestedChoices: [
-        { id: 'custom-1', label: 'Ask about the forest' },
-        { id: 'custom-2', label: 'Invite them to walk with us' },
+        { id: 'custom-1', label: talent ? `Ask about ${talent}`.slice(0, 60) : 'Ask about the forest' },
+        { id: 'custom-2', label: goal ? `Offer to ${goal}`.slice(0, 60) : 'Invite them to walk with us' },
         { id: 'custom-3', label: 'Ask what they noticed' },
       ],
       source: 'mock',
@@ -105,10 +108,13 @@ export function mockReply(request: ChatRequest): ChatResponse {
   }
   const voice = VOICES[request.characterId] ?? DEFAULT_VOICE
   const seed = hash(request.playerText + request.history.length)
+  const companion = safeCompanionProfiles(request.companionProfiles)[0]
+  const labels = [...voice.suggestions[seed % voice.suggestions.length]]
+  if (companion?.goal) labels[2] = `Ask how ${companion.name} can ${companion.goal}`.slice(0, 60)
 
   return {
     reply: voice.replies[seed % voice.replies.length],
-    suggestedChoices: voice.suggestions[seed % voice.suggestions.length].map((label, index) => ({
+    suggestedChoices: labels.map((label, index) => ({
       id: `mock-${seed}-${index}`,
       label,
     })),

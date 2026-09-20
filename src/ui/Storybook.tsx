@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import type { StoryEntry } from '../state/types.ts'
 import type { Character, PlayerRole } from '../state/types.ts'
 import { makeStoryPages } from './storyPages.ts'
-import { renderStoryArt } from './renderStoryArt.ts'
+import { renderStoryArt } from './renderStoryArt.tsx'
 
 interface Props { title: string; log: StoryEntry[]; onClose: () => void; taleId: string; endingSceneId: string; role: PlayerRole; characters: Character[]; companionIds: string[]; characterPositions: Record<string, Record<string, { x: number; y: number }>> }
 
@@ -12,17 +12,18 @@ export function Storybook({ title, log, onClose, taleId, endingSceneId, role, ch
   const [art, setArt] = useState<Record<string, string>>({})
   const [artError, setArtError] = useState(false)
   const sceneIds = pages.map((page, index) => page.sceneId ?? (index === pages.length - 1 ? endingSceneId : ['forest-path', 'fork', 'cottage'][Math.min(index, 2)]))
-  const ready = [...new Set(sceneIds)].every((id) => art[id])
+  const ready = pages.every((page) => art[page.key])
 
   useEffect(() => {
     let cancelled = false
     async function prepare() {
       try {
         const images: Record<string, string> = {}
-        for (const id of [...new Set(sceneIds)]) {
-          images[id] = await renderStoryArt(taleId, id, role, characters, companionIds, characterPositions[id])
+        for (const [index, page] of pages.entries()) {
+          const id = sceneIds[index]
+          images[page.key] = await renderStoryArt(taleId, id, role, characters, companionIds, characterPositions[id], page.imaginedScene)
           const preview = new Image()
-          preview.src = images[id]
+          preview.src = images[page.key]
           await preview.decode()
         }
         if (!cancelled) setArt(images)
@@ -45,7 +46,7 @@ export function Storybook({ title, log, onClose, taleId, endingSceneId, role, ch
       <header className="storybook__cover"><p>My fairy tale</p><h1>{title}</h1><span>A story you helped create</span></header>
       {pages.map((page, index) => <section className="storybook__page" key={index}>
         <p className="storybook__number">{index + 1} / {pages.length}</p>
-        {art[sceneIds[index]] && <img className="storybook__illustration" src={art[sceneIds[index]]} alt={`Illustration for page ${index + 1}`} />}
+        {art[page.key] && <img className="storybook__illustration" src={art[page.key]} alt={`Illustration for page ${index + 1}`} />}
         {page.narration.split('\n\n').filter(Boolean).map((paragraph, paragraphIndex) => <p className="storybook__narration" key={paragraphIndex}>{paragraph}</p>)}
         {page.moments.map((moment) => <p className="storybook__moment" key={moment.id}>
           {moment.speaker && <strong>{moment.speaker}: </strong>}{moment.text}

@@ -20,6 +20,9 @@ export function DrawingScanner({ onCreate, onChooseReadyMade, hasReadyMade, onCl
   const [personality, setPersonality] = useState('')
   const [talent, setTalent] = useState<Talent | ''>('')
   const [goal, setGoal] = useState<Goal | ''>('')
+  const [customPersonality, setCustomPersonality] = useState(false)
+  const [customTalent, setCustomTalent] = useState(false)
+  const [customGoal, setCustomGoal] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cameraStarting, setCameraStarting] = useState(false)
@@ -225,9 +228,9 @@ export function DrawingScanner({ onCreate, onChooseReadyMade, hasReadyMade, onCl
           Character name
           <input type="text" value={name} maxLength={24} onChange={(event) => setName(event.target.value)} placeholder="e.g. Sunny" />
         </label>
-        <fieldset className="scanner__profile"><legend>Personality</legend><div className="scanner__options">{PERSONALITIES.map((item) => <label key={item}><input type="checkbox" checked={personality.split(' and ').includes(item)} onChange={() => { const selected = personality ? personality.split(' and ') : []; setPersonality(selected.includes(item) ? selected.filter((value) => value !== item).join(' and ') : [...selected.slice(-1), item].join(' and ')) }} />{item}</label>)}</div><small>Choose one or two.</small></fieldset>
-        <fieldset className="scanner__profile"><legend>What is this character good at?</legend><div className="scanner__options">{TALENTS.map((item) => <label key={item}><input type="radio" name="talent" checked={talent === item} onChange={() => setTalent(item)} />{item}</label>)}</div></fieldset>
-        <fieldset className="scanner__profile"><legend>What do they want to do?</legend><div className="scanner__options">{GOALS.map((item) => <label key={item}><input type="radio" name="goal" checked={goal === item} onChange={() => setGoal(item)} />{item}</label>)}</div></fieldset>
+        <fieldset className="scanner__profile"><legend>Personality</legend><div className="scanner__options">{PERSONALITIES.map((item) => <label key={item}><input type="checkbox" checked={!customPersonality && personality.split(' and ').includes(item)} onChange={() => { setCustomPersonality(false); const selected = personality ? personality.split(' and ') : []; setPersonality(selected.includes(item) ? selected.filter((value) => value !== item).join(' and ') : [...selected.slice(-1), item].join(' and ')) }} />{item}</label>)}<label><input type="checkbox" checked={customPersonality} onChange={() => { setCustomPersonality(true); setPersonality('') }} />Write my own</label></div>{customPersonality ? <input className="scanner__custom-input" type="text" value={personality} maxLength={80} onChange={(event) => setPersonality(event.target.value)} placeholder="e.g. loves solving puzzles" aria-label="Write personality" /> : <small>Choose one or two.</small>}</fieldset>
+        <fieldset className="scanner__profile"><legend>What is this character good at?</legend><div className="scanner__options">{TALENTS.map((item) => <label key={item}><input type="radio" name="talent" checked={!customTalent && talent === item} onChange={() => { setCustomTalent(false); setTalent(item) }} />{item}</label>)}<label><input type="radio" name="talent" checked={customTalent} onChange={() => { setCustomTalent(true); setTalent('') }} />Write my own</label></div>{customTalent && <input className="scanner__custom-input" type="text" value={talent} maxLength={80} onChange={(event) => setTalent(event.target.value)} placeholder="e.g. building tiny bridges" aria-label="Write what this character is good at" />}</fieldset>
+        <fieldset className="scanner__profile"><legend>What do they want to do?</legend><div className="scanner__options">{GOALS.map((item) => <label key={item}><input type="radio" name="goal" checked={!customGoal && goal === item} onChange={() => { setCustomGoal(false); setGoal(item) }} />{item}</label>)}<label><input type="radio" name="goal" checked={customGoal} onChange={() => { setCustomGoal(true); setGoal('') }} />Write my own</label></div>{customGoal && <input className="scanner__custom-input" type="text" value={goal} maxLength={80} onChange={(event) => setGoal(event.target.value)} placeholder="e.g. find a lost star" aria-label="Write what this character wants to do" />}</fieldset>
         <button
           type="button" className="button button--primary"
           disabled={!imageDataUrl || busy || !name.trim() || !personality || !talent || !goal}

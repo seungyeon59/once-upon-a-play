@@ -4,6 +4,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/chat.js": { "maxDuration": 30 }
+    "api/chat.js": { "maxDuration": 30 },
+    "api/imagine.js": { "maxDuration": 30 },
+    "api/narrate.js": { "maxDuration": 30 }
   }
 }

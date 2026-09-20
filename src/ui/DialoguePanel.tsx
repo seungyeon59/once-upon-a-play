@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import type { Character, ChatTurn, SuggestedChoice } from '../state/types.ts'
 import { MAX_SAY_CHARS } from '../state/limits.ts'
+import { ListenButton } from './ListenButton.tsx'
 
 interface DialoguePanelProps {
   character: Character
@@ -12,6 +13,7 @@ interface DialoguePanelProps {
   source: 'llm' | 'mock' | null
   onSay: (text: string) => void
   onClose: () => void
+  onPlay: () => void
 }
 
 /**
@@ -28,10 +30,13 @@ export function DialoguePanel({
   source,
   onSay,
   onClose,
+  onPlay,
 }: DialoguePanelProps) {
   const [draft, setDraft] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const latestReply = [...turns].reverse().find((turn) => turn.role === 'character')?.text
+  const speakingCharacter = character.id === 'red' || character.id === 'wolf' || character.id === 'grandma' ? character.id : undefined
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -40,6 +45,7 @@ export function DialoguePanel({
   useEffect(() => {
     inputRef.current?.focus()
   }, [character.id])
+
 
   function send(text: string): void {
     const trimmed = text.trim()
@@ -67,6 +73,7 @@ export function DialoguePanel({
         </button>
       </header>
 
+
       <div className="dialogue__turns">
         {turns.length === 0 && !pending && (
           <p className="dialogue__hint">
@@ -88,6 +95,8 @@ export function DialoguePanel({
         )}
         <div ref={endRef} />
       </div>
+
+      {latestReply && !pending && <div className="dialogue__listen"><ListenButton text={latestReply} speakingCharacter={speakingCharacter} replyMode /></div>}
 
       {notice && (
         <p className="dialogue__notice" role="status">
@@ -135,6 +144,7 @@ export function DialoguePanel({
           Offline voices — add an API key to <code>server/.env</code> for live conversation.
         </p>
       )}
+      <div className="dialogue__game-action"><button type="button" className="button" onClick={onPlay}>Play a mini game with {character.name} ✨</button></div>
     </section>
   )
 }

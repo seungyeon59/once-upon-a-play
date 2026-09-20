@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { Application, Container, Graphics, Rectangle, Sprite, Text, Texture, type FederatedPointerEvent } from 'pixi.js'
+import { Application, Graphics, Rectangle, Sprite, Text, Texture, type FederatedPointerEvent } from 'pixi.js'
 
-import type { Character, ScenePlacement } from '../state/types.ts'
+import type { Character, SceneAction, ScenePlacement } from '../state/types.ts'
 import { bakeCharacter, paintParallaxBackdrop } from './placeholderArt.ts'
+import { shopItem, type AccessoryFit } from '../content/shopItems.ts'
 import {
   createProceduralState,
   pokeTalk,
@@ -11,7 +12,10 @@ import {
 } from './procedural.ts'
 
 interface PixiStageProps {
+  sceneKey: string
   backdrop: Parameters<typeof paintParallaxBackdrop>[0]
+  generatedBackdrop?: boolean
+  actions: SceneAction[]
   cast: ScenePlacement[]
   characters: Character[]
   /** The character currently being talked to, if any. */
@@ -21,15 +25,19 @@ interface PixiStageProps {
   speakTick: number
   onSelect: (characterId: string) => void
   onMove: (characterId: string, x: number, y: number) => void
+  equippedItems?: Record<string, string>
+  accessoryFits?: Record<string, AccessoryFit>
+  shopPhase?: 'closed' | 'entering' | 'open' | 'leaving'
 }
 
 interface Actor {
   sprite: Sprite
   state: ProceduralState
   ring?: Graphics
-  label?: Container
+  accessory?: Text
   characterId: string
   suppressTap: boolean
+  travel?: { fromX: number; fromY: number; toX: number; toY: number; start: number; duration: number }
 }
 
 interface Drag {
@@ -54,9 +62,35 @@ export function PixiStage(props: PixiStageProps) {
   const cameraRef = useRef({ current: 0, target: 0 })
   const layersRef = useRef<ReturnType<typeof paintParallaxBackdrop> | null>(null)
   const backdropRef = useRef(props.backdrop)
+  const sceneKeyRef = useRef(props.sceneKey)
+  const transitionTimersRef = useRef<number[]>([])
+  const actionTimersRef = useRef<number[]>([])
   /** Latest props, read from the ticker and the rebuild effect without re-mounting. */
   const propsRef = useRef(props)
+  const previousShopPhase = useRef(props.shopPhase ?? 'closed')
   propsRef.current = props
+
+  function updateAccessories(): void {
+    for (const actor of actorsRef.current) {
+      if (actor.accessory) { actor.sprite.removeChild(actor.accessory); actor.accessory.destroy(); actor.accessory = undefined }
+      const item = shopItem(propsRef.current.equippedItems?.[actor.characterId] ?? '')
+      if (!item || item.category !== 'character') continue
+      const character = propsRef.current.characters.find((candidate) => candidate.id === actor.characterId)
+      const wolf = character?.art.silhouette === 'wolf'
+      const slot = item.slot ?? 'head'
+      const height = actor.sprite.texture.height
+      const baseX = wolf ? (slot === 'back' ? -0.17 : 0.27) : slot === 'back' ? -0.18 : 0
+      const baseY = slot === 'head' ? (wolf ? -0.84 : -0.87) : slot === 'face' ? -0.62 : slot === 'neck' ? -0.48 : -0.42
+      const fit = propsRef.current.accessoryFits?.[`${actor.characterId}:${item.id}`] ?? { x: 0, y: 0, scale: 1 }
+      const badge = new Text({ text: item.symbol, style: { fontSize: slot === 'face' ? 29 : 34, fontFamily: 'Apple Color Emoji, Segoe UI Emoji, sans-serif' } })
+      badge.anchor.set(0.5, 1)
+      badge.position.set((baseX + fit.x) * height, (baseY + fit.y) * height)
+      badge.scale.set(fit.scale)
+      badge.eventMode = 'none'
+      actor.sprite.addChild(badge)
+      actor.accessory = badge
+    }
+  }
 
   // Mount the Pixi application exactly once.
   useEffect(() => {
@@ -68,7 +102,7 @@ export function PixiStage(props: PixiStageProps) {
 
     void app
       .init({
-        background: 0x1d2e28,
+        backgroundAlpha: 0,
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
@@ -98,16 +132,18 @@ export function PixiStage(props: PixiStageProps) {
           }
           if (!drag.moved && Math.hypot(event.global.x - drag.startX, event.global.y - drag.startY) < 6) return
           drag.moved = true
+          actionTimersRef.current.forEach(window.clearTimeout)
+          actionTimersRef.current = []
+          actorsRef.current.forEach((item) => { item.travel = undefined; item.state.walking = 0 })
           drag.actor.suppressTap = true
           drag.actor.state.dragging = true
-          const { state, sprite, ring, label } = drag.actor
+          const { state, sprite, ring } = drag.actor
           const halfWidth = Math.min(drag.width * 0.4, sprite.texture.width * state.baseScale * 0.5)
           const spriteHeight = Math.min(drag.height * 0.8, sprite.texture.height * state.baseScale)
           state.baseX = Math.max(halfWidth, Math.min(drag.width - halfWidth, event.global.x - drag.offsetX))
           state.baseY = Math.max(spriteHeight, Math.min(drag.height - 8, event.global.y - drag.offsetY))
           sprite.position.set(state.baseX, state.baseY)
           if (ring) ring.position.set(state.baseX, state.baseY)
-          if (label) label.position.set(state.baseX, state.baseY + 14)
         })
         app.stage.on('pointerup', finishPointer)
         app.stage.on('pointerupoutside', finishPointer)
@@ -124,14 +160,21 @@ export function PixiStage(props: PixiStageProps) {
           }
           const active = propsRef.current.activeCharacterId
           for (const actor of actorsRef.current) {
+            if (actor.travel && !actor.state.dragging) {
+              const travel = actor.travel
+              const progress = Math.min(1, (performance.now() - travel.start) / travel.duration)
+              const eased = progress * progress * (3 - 2 * progress)
+              actor.state.baseX = travel.fromX + (travel.toX - travel.fromX) * eased
+              actor.state.baseY = travel.fromY + (travel.toY - travel.fromY) * eased
+              actor.state.facing = travel.toX >= travel.fromX ? 1 : -1
+              actor.state.walking = progress < 1 ? 1 : 0
+              if (progress === 1) actor.travel = undefined
+            }
             actor.state.focusTarget = actor.characterId === active ? 1 : 0
             tickProcedural(actor.sprite, actor.state, ticker.deltaTime)
             if (actor.ring) {
+              actor.ring.position.set(actor.state.baseX, actor.state.baseY)
               actor.ring.alpha = 0.16 + Math.sin(actor.state.phase * 1.6) * 0.1 + actor.state.hover * 0.3
-            }
-            if (actor.label) {
-              actor.label.alpha = Math.max(actor.state.hover, actor.state.focus)
-              actor.label.y = actor.state.baseY + 14
             }
           }
         })
@@ -141,6 +184,8 @@ export function PixiStage(props: PixiStageProps) {
 
     return () => {
       cancelled = true
+      transitionTimersRef.current.forEach(window.clearTimeout)
+      actionTimersRef.current.forEach(window.clearTimeout)
       for (const texture of texturesRef.current.values()) texture.destroy(true)
       texturesRef.current.clear()
       actorsRef.current = []
@@ -163,7 +208,7 @@ export function PixiStage(props: PixiStageProps) {
     const host = hostRef.current
     if (!host) return
 
-    const { backdrop, cast, characters, onSelect } = propsRef.current
+    const { backdrop, cast, characters, onSelect, generatedBackdrop } = propsRef.current
 
     // The DOM box is the single source of truth. Pixi's own `resizeTo` applies
     // on its next tick, which would let us paint the scenery at the previous
@@ -181,12 +226,14 @@ export function PixiStage(props: PixiStageProps) {
       backdropRef.current = backdrop
       cameraRef.current = { current: 0, target: 0 }
     }
-    const layers = paintParallaxBackdrop(backdrop, width, height)
-    layers.base.eventMode = 'none'
-    layers.middle.eventMode = 'none'
-    layers.front.eventMode = 'none'
+    const layers = generatedBackdrop ? null : paintParallaxBackdrop(backdrop, width, height)
+    if (layers) {
+      layers.base.eventMode = 'none'
+      layers.middle.eventMode = 'none'
+      layers.front.eventMode = 'none'
+      app.stage.addChild(layers.base, layers.middle)
+    }
     layersRef.current = layers
-    app.stage.addChild(layers.base, layers.middle)
 
     // Painter's algorithm: characters lower on screen stand in front.
     const ordered = [...cast].sort((a, b) => a.y - b.y)
@@ -252,13 +299,12 @@ export function PixiStage(props: PixiStageProps) {
           pokeTalk(state)
           onSelect(character.id)
         })
-        actor.label = buildLabel(character.name, x, y)
-        app.stage.addChild(actor.label)
       }
 
       actorsRef.current.push(actor)
     }
-    app.stage.addChild(layers.front)
+    if (layers) app.stage.addChild(layers.front)
+    updateAccessories()
   }
 
   function finishPointer(event: FederatedPointerEvent): void {
@@ -277,11 +323,104 @@ export function PixiStage(props: PixiStageProps) {
     }
   }
 
+  function playActions(delay: number): void {
+    actionTimersRef.current.forEach(window.clearTimeout)
+    actionTimersRef.current = []
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let at = delay
+    for (const beat of propsRef.current.actions.slice(0, 5)) {
+      const duration = beat.action === 'walk' ? 1050 : 600
+      actionTimersRef.current.push(window.setTimeout(() => {
+        const app = appRef.current
+        const actor = actorsRef.current.find((item) => item.characterId === beat.characterId)
+        if (!app || !actor || actor.state.dragging) return
+        if (beat.action === 'walk' && beat.x !== undefined && beat.y !== undefined) {
+          actor.travel = { fromX: actor.state.baseX, fromY: actor.state.baseY, toX: beat.x * app.screen.width, toY: beat.y * app.screen.height, start: performance.now(), duration: 900 }
+        } else if (beat.action === 'look' && beat.x !== undefined) {
+          actor.state.facing = beat.x * app.screen.width >= actor.state.baseX ? 1 : -1
+        } else if (beat.action === 'gesture') {
+          if (beat.x !== undefined) actor.state.facing = beat.x * app.screen.width >= actor.state.baseX ? 1 : -1
+          pokeTalk(actor.state)
+        }
+      }, at))
+      at += duration
+    }
+  }
+
   // Repaint when the scene changes, and when the stage is resized.
   useEffect(() => {
-    rebuild()
+    if (sceneKeyRef.current !== props.sceneKey) {
+      actionTimersRef.current.forEach(window.clearTimeout)
+      actionTimersRef.current = []
+      actorsRef.current.forEach((actor) => { actor.travel = undefined; actor.state.walking = 0 })
+    }
+    if (sceneKeyRef.current !== props.sceneKey && appRef.current && actorsRef.current.length && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      sceneKeyRef.current = props.sceneKey
+      transitionTimersRef.current.forEach(window.clearTimeout)
+      transitionTimersRef.current = []
+      const app = appRef.current
+      const width = app.screen.width
+      const height = app.screen.height
+      const now = performance.now()
+      const forest = props.backdrop === 'forest-path' || props.backdrop === 'fork'
+      actorsRef.current.forEach((actor, index) => {
+        const x = forest ? width * (0.56 + index * 0.06) : width * 1.08
+        const y = forest ? height * 0.64 : actor.state.baseY
+        actor.travel = { fromX: actor.state.baseX, fromY: actor.state.baseY, toX: x, toY: y, start: now, duration: 850 }
+        actor.sprite.eventMode = 'none'
+      })
+      transitionTimersRef.current.push(window.setTimeout(() => {
+        app.canvas.style.opacity = '0'
+        transitionTimersRef.current.push(window.setTimeout(() => {
+          rebuild()
+          app.canvas.style.opacity = '0'
+          const entryTime = performance.now()
+          actorsRef.current.forEach((actor, index) => {
+            const toX = actor.state.baseX
+            const toY = actor.state.baseY
+            const fromX = forest ? width * (0.56 + index * 0.06) : -width * 0.08
+            const fromY = forest ? height * 0.64 : toY
+            actor.travel = { fromX, fromY, toX, toY, start: entryTime, duration: 850 }
+            actor.state.baseX = fromX
+            actor.state.baseY = fromY
+          })
+          transitionTimersRef.current = []
+          requestAnimationFrame(() => { app.canvas.style.opacity = '1' })
+          playActions(950)
+        }, 250))
+      }, 750))
+    } else if (sceneKeyRef.current === props.sceneKey && transitionTimersRef.current.length === 0) {
+      rebuild()
+    } else if (sceneKeyRef.current !== props.sceneKey || !appRef.current || !actorsRef.current.length) {
+      sceneKeyRef.current = props.sceneKey
+      rebuild()
+      playActions(250)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.backdrop, props.cast, props.characters])
+  }, [props.sceneKey, props.backdrop, props.generatedBackdrop, props.cast, props.characters])
+
+  useEffect(() => { updateAccessories() }, [props.equippedItems, props.accessoryFits]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const phase = props.shopPhase ?? 'closed'
+    const previous = previousShopPhase.current
+    previousShopPhase.current = phase
+    if (phase === 'entering') {
+      actionTimersRef.current.forEach(window.clearTimeout)
+      actionTimersRef.current = []
+      const actor = actorsRef.current.find((item) => item.characterId === props.playerCharacterId)
+      const app = appRef.current
+      if (actor && app) {
+        actor.sprite.eventMode = 'none'
+        actor.travel = { fromX: actor.state.baseX, fromY: actor.state.baseY, toX: app.screen.width * 0.5, toY: app.screen.height * 0.79, start: performance.now(), duration: 900 }
+      }
+    } else if (phase === 'closed' && previous !== 'closed') {
+      transitionTimersRef.current.forEach(window.clearTimeout)
+      transitionTimersRef.current = []
+      if (appRef.current) appRef.current.canvas.style.opacity = '1'
+      rebuild()
+    }
+  }, [props.shopPhase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let cancelled = false
@@ -325,23 +464,4 @@ export function PixiStage(props: PixiStageProps) {
   }, [props.speakTick, props.activeCharacterId])
 
   return <div ref={hostRef} className="stage" />
-}
-
-function buildLabel(name: string, x: number, y: number): Container {
-  const container = new Container()
-  const text = new Text({
-    text: name,
-    style: { fill: 0x2b2119, fontSize: 15, fontWeight: '700', fontFamily: 'Georgia, serif' },
-  })
-  text.anchor.set(0.5)
-
-  const pad = 10
-  const plate = new Graphics()
-  plate.roundRect(-text.width / 2 - pad, -text.height / 2 - 4, text.width + pad * 2, text.height + 8, 9)
-  plate.fill(0xf5e6b8)
-
-  container.addChild(plate, text)
-  container.position.set(x, y + 14)
-  container.alpha = 0
-  return container
 }

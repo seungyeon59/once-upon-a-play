@@ -1,5 +1,6 @@
 import type { Character, ChatRequest } from '../src/state/types.ts'
 import { MAX_REPLY_CHARS } from './safety.ts'
+import { safeCompanionProfiles } from './customCharacter.ts'
 
 /**
  * Turns a character + the live story state into a system prompt.
@@ -125,6 +126,7 @@ export function buildContextBlock(request: ChatRequest): string {
     request.companionNames?.length
       ? `Companions named ${request.companionNames.join(', ')} have joined the group. Do not speak for them.`
       : request.companionId ? `A companion named ${request.customCharacter?.name ?? request.companionId} has joined the group. Do not speak for that companion.` : '',
+    ...safeCompanionProfiles(request.companionProfiles).map((profile) => `${profile.name} is ${profile.personality}; good at ${profile.talent ?? 'helping friends'}; hopes to ${profile.goal ?? 'explore together'}. Let this shape relevant conversation suggestions, while the player chooses what happens.`),
     request.playerRole === 'wolf' ? 'Nana Wren is not Gray’s grandmother; she should address him as Gray.' : '',
     request.playerRole === 'visitor' ? 'The traveler is not Nana Wren’s grandchild; she should address them as a visitor.' : '',
     `Scene: ${request.sceneTitle}`,
@@ -132,6 +134,7 @@ export function buildContextBlock(request: ChatRequest): string {
     request.objective ? `What the player is trying to do: ${request.objective}` : '',
     'What has happened so far because of the player\'s choices:',
     describeFlags(request.flags, request.playerRole),
+    request.recentStory?.length ? `Recent events created by the player:\n${request.recentStory.slice(-6).map((line) => `- ${String(line).slice(0, 220)}`).join('\n')}` : '',
   ]
     .filter(Boolean)
     .join('\n')

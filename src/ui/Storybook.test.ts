@@ -28,3 +28,18 @@ test('storybook keeps extra narration in its scene instead of creating an empty 
   assert.deepEqual(pages.map((page) => page.sceneId), ['fork', 'cottage'])
   assert.match(pages[0].narration, /The asters sway/)
 })
+
+test('each child-created map gets its own illustrated page, even in the same scene', () => {
+  const sky = { title: 'Cloud Walk', narration: 'We walk among clouds.', setting: 'Sky', map: { theme: 'sky' as const, landmark: 'none' as const, backdropId: 'sky' as const } }
+  const sea = { title: 'Sea Dive', narration: 'We dive under the sea.', setting: 'Sea', map: { theme: 'sky' as const, landmark: 'none' as const, backdropId: 'ocean' as const } }
+  const pages = makeStoryPages([
+    { id: '1', kind: 'narration', text: 'At the fork.', ts: 1, sceneId: 'fork' },
+    { id: '2', kind: 'narration', text: sky.narration, ts: 2, sceneId: 'fork', imaginedScene: sky },
+    { id: '3', kind: 'narration', text: 'A bird joins us.', ts: 3, sceneId: 'fork' },
+    { id: '4', kind: 'narration', text: sea.narration, ts: 4, sceneId: 'fork', imaginedScene: sea },
+  ])
+  assert.equal(pages.length, 3)
+  assert.deepEqual(pages.map((page) => page.key), ['1', '2', '4'])
+  assert.deepEqual(pages.map((page) => page.imaginedScene?.map.backdropId), [undefined, 'sky', 'ocean'])
+  assert.match(pages[1].narration, /bird joins us/)
+})

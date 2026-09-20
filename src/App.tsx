@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 
 import { TALES } from './content/tales/redRidingHood.ts'
 import { getCharacter } from './content/characters.ts'
@@ -11,8 +11,21 @@ import { MapSelect } from './ui/MapSelect.tsx'
 import { StoryLog } from './ui/StoryLog.tsx'
 import { CharacterCodex } from './ui/CharacterCodex.tsx'
 import { DrawingScanner } from './ui/DrawingScanner.tsx'
+import { GeneratedMap } from './ui/GeneratedMap.tsx'
+import { PrebuiltMap } from './ui/PrebuiltMap.tsx'
+import { ListenButton } from './ui/ListenButton.tsx'
+import { MemoryGame } from './ui/MemoryGame.tsx'
+import { SequenceGame } from './ui/SequenceGame.tsx'
+import { ExtraGame, type ExtraGameKind } from './ui/ExtraGames.tsx'
 import { CODEX_CHARACTERS } from './content/characters.ts'
 import type { Character, ScenePlacement } from './state/types.ts'
+import { loadBackground } from './state/imageCache.ts'
+import { sceneryFor } from './content/secretScenery.ts'
+import { StorePanel } from './ui/StorePanel.tsx'
+import { MapDecorations } from './ui/MapDecorations.tsx'
+import { ShopStage } from './ui/ShopStage.tsx'
+import { CharacterNameTags } from './ui/CharacterNameTags.tsx'
+import { InventoryPanel } from './ui/InventoryPanel.tsx'
 
 function bubblePosition(placement: ScenePlacement, character: Character, stage: { width: number; height: number }, width: number) {
   const x = Math.max(width / 2 + 12, Math.min(placement.x * stage.width, stage.width - width / 2 - 12))
@@ -32,6 +45,36 @@ export default function App() {
   const [codexOpen, setCodexOpen] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [companionMenuOpen, setCompanionMenuOpen] = useState(false)
+  const [storyIdea, setStoryIdea] = useState('')
+  const [cachedBackground, setCachedBackground] = useState<{ id: string; dataUrl: string } | null>(null)
+  const [endingOpen, setEndingOpen] = useState(false)
+  const [miniGame, setMiniGame] = useState<{ kind: 'pairs' | 'echo' | ExtraGameKind; character: Character } | null>(null)
+  const [treasureMessage, setTreasureMessage] = useState<string | null>(null)
+  const [shopPhase, setShopPhase] = useState<'closed' | 'entering' | 'open' | 'leaving'>('closed')
+  const [shopVisit, setShopVisit] = useState(0)
+  const [shopCategory, setShopCategory] = useState<'map' | 'character' | null>(null)
+  const [inventoryOpen, setInventoryOpen] = useState(false)
+  const [sceneryPositions, setSceneryPositions] = useState<Record<number, { x: number; y: number }>>({})
+  const sceneryDrag = useRef<{ index: number; pointerId: number; x: number; y: number; startX: number; startY: number; moved: boolean } | null>(null)
+  const suppressSceneryClick = useRef<number | null>(null)
+
+  useEffect(() => { setEndingOpen(false) }, [scene?.id])
+  useEffect(() => { setMiniGame(null); setTreasureMessage(null); setSceneryPositions({}) }, [scene?.id, store.imaginedScene?.title])
+  useEffect(() => { setShopPhase('closed'); setInventoryOpen(false) }, [scene?.id, store.screen])
+  useEffect(() => {
+    if (shopPhase !== 'entering' && shopPhase !== 'leaving') return
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const timer = window.setTimeout(() => setShopPhase(shopPhase === 'entering' ? 'open' : 'closed'), reducedMotion ? 150 : shopPhase === 'entering' ? 1050 : 550)
+    return () => window.clearTimeout(timer)
+  }, [shopPhase])
+
+  useEffect(() => {
+    const id = store.imaginedScene?.map.imageId
+    if (!id || store.imaginedScene?.map.imageDataUrl) return
+    let active = true
+    void loadBackground(id).then((dataUrl) => { if (active && dataUrl) setCachedBackground({ id, dataUrl }) }).catch((error) => console.error('[background]', error))
+    return () => { active = false }
+  }, [store.imaginedScene?.map.imageId, store.imaginedScene?.map.imageDataUrl])
 
   useEffect(() => {
     setHasSave(localStorage.getItem('tale-weaver:v1') !== null)
@@ -52,18 +95,20 @@ export default function App() {
   const cast = useMemo(
     () => {
       const placements = [...(scene?.cast ?? []), ...(variant?.addCast ?? [])]
-      const slots = [0.85, 0.14, 0.72, 0.28, 0.5]
+      const slots = [0.62, 0.38, 0.5, 0.72, 0.28, 0.8, 0.2]
       for (const id of store.companionIds) {
         if (placements.some((actor) => actor.characterId === id)) continue
         const x = slots.find((slot) => placements.every((actor) => Math.abs(actor.x - slot) > 0.12)) ?? slots[placements.length % slots.length]
         placements.push({ characterId: id, x, y: 0.84, scale: 0.8, facing: x > 0.5 ? -1 : 1 })
       }
+      const planned = store.imaginedScene?.map.cast ?? []
       const positions = store.characterPositions[scene?.id ?? ''] ?? {}
-      return placements.map((placement) => positions[placement.characterId]
-        ? { ...placement, ...positions[placement.characterId] }
-        : placement)
+      return placements.map((placement) => {
+        const mapPlacement = planned.find((actor) => actor.characterId === placement.characterId)
+        return { ...placement, ...mapPlacement, ...positions[placement.characterId] }
+      })
     },
-    [scene?.id, variant?.id, store.companionIds, store.characterPositions], // eslint-disable-line react-hooks/exhaustive-deps
+    [scene?.id, variant?.id, store.companionIds, store.characterPositions, store.imaginedScene?.map.cast], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const characters = useMemo(
@@ -74,7 +119,7 @@ export default function App() {
   const activeCharacter = store.activeCharacterId
     ? getCharacter(store.activeCharacterId) ?? store.customCharacters.find((item) => item.id === store.activeCharacterId)
     : undefined
-  const isEnding = Boolean(scene?.ending)
+  const isEnding = Boolean(store.imaginedScene?.ending || scene?.ending)
   const activePlacement = cast.find((placement) => placement.characterId === store.activeCharacterId)
   const activeTurns = store.activeCharacterId ? store.dialogues[store.activeCharacterId] ?? [] : []
   const latestQuestion = [...activeTurns].reverse().find((turn) => turn.role === 'child')?.text
@@ -85,6 +130,63 @@ export default function App() {
   const showUserSpeech = Boolean(latestQuestion && userSpeechFor === store.activeCharacterId)
   const canInvite = Boolean(scene && !isEnding)
   const availableReadyMade = CODEX_CHARACTERS.filter((character) => !store.companionIds.includes(character.id))
+  const secretSceneKey = `${scene?.id ?? ''}:${store.imaginedScene ? store.log.findLast((item) => item.imaginedScene)?.id ?? '' : 'authored'}`
+  const gameKinds = ['pairs', 'echo', 'odd', 'trail', 'catch', 'riddle'] as const
+  const scenery = sceneryFor(store.imaginedScene?.map.backdropId ?? (scene?.backdrop === 'hearth' ? 'kitchen' : 'forest'), !store.imaginedScene && scene?.backdrop !== 'hearth')
+  const placedDecorations = store.placedItems[secretSceneKey] ?? []
+
+  function startRandomGame(character: Character) {
+    setTreasureMessage(null)
+    setMiniGame({ kind: gameKinds[Math.floor(Math.random() * gameKinds.length)], character })
+  }
+
+  function findSecret(index: number) {
+    if (!store.discoverSecret(`${secretSceneKey}:${index}`)) return
+    store.closeDialogue()
+    if (Math.random() < 0.35) {
+      const amount = 3 + Math.floor(Math.random() * 5)
+      store.awardCoins(amount)
+      setTreasureMessage(`A hidden coin pouch! +${amount} coins`)
+    } else {
+      startRandomGame(characters.find((character) => character.id !== store.playerRole) ?? getCharacter('red')!)
+    }
+  }
+
+  function startSceneryDrag(event: PointerEvent<HTMLButtonElement>, index: number) {
+    if (event.button !== 0) return
+    suppressSceneryClick.current = null
+    const bounds = event.currentTarget.parentElement?.getBoundingClientRect()
+    const rect = event.currentTarget.getBoundingClientRect()
+    if (!bounds) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    sceneryDrag.current = { index, pointerId: event.pointerId, x: (rect.left - bounds.left) / bounds.width, y: (rect.top - bounds.top) / bounds.height, startX: event.clientX, startY: event.clientY, moved: false }
+  }
+
+  function moveScenery(event: PointerEvent<HTMLButtonElement>) {
+    const drag = sceneryDrag.current
+    const bounds = event.currentTarget.parentElement?.getBoundingClientRect()
+    if (!drag || !bounds || drag.pointerId !== event.pointerId) return
+    if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 5) return
+    drag.moved = true
+    setSceneryPositions((positions) => ({ ...positions, [drag.index]: { x: Math.max(0, Math.min(0.9, drag.x + (event.clientX - drag.startX) / bounds.width)), y: Math.max(0.1, Math.min(0.85, drag.y + (event.clientY - drag.startY) / bounds.height)) } }))
+  }
+
+  function finishSceneryDrag(event: PointerEvent<HTMLButtonElement>) {
+    const drag = sceneryDrag.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    if (drag.moved) suppressSceneryClick.current = drag.index
+    sceneryDrag.current = null
+  }
+
+  function enterShop() {
+    if (shopPhase !== 'closed') return
+    setShopVisit((visit) => visit + 1)
+    setMiniGame(null)
+    setInventoryOpen(false)
+    store.closeDialogue()
+    setShopCategory(null)
+    setShopPhase('entering')
+  }
 
   // Let the child's line appear first, even when a mock reply returns instantly.
   useEffect(() => {
@@ -116,9 +218,18 @@ export default function App() {
      * choices, conversation, the story log — takes turns in the rail beside it.
      */
     <main className="play">
-      <div className="play__stage" ref={stageRef}>
+      <div className="play__stage" ref={stageRef} onPointerMove={(event) => { const bounds = event.currentTarget.getBoundingClientRect(); event.currentTarget.style.setProperty('--pointer-x', String((event.clientX - bounds.left) / bounds.width - 0.5)); event.currentTarget.style.setProperty('--pointer-y', String((event.clientY - bounds.top) / bounds.height - 0.5)) }} onPointerLeave={(event) => { event.currentTarget.style.setProperty('--pointer-x', '0'); event.currentTarget.style.setProperty('--pointer-y', '0') }}>
+        <div className={`play__world${shopPhase === 'open' || shopPhase === 'leaving' ? ' play__world--shop' : ''}`} onWheel={(event) => { if (shopPhase === 'open') { event.currentTarget.scrollLeft += event.deltaX || event.deltaY; event.preventDefault() } }}>
+        <div className="play__world-content">
+        {store.imaginedScene?.map && (store.imaginedScene.map.backdropId
+          ? <PrebuiltMap map={store.imaginedScene.map} onUpdateProp={store.updateMapProp} onRemoveProp={store.removeMapProp} onExit={(label) => { void store.imagine(`I follow the way toward ${label}.`) }} />
+          : <GeneratedMap map={store.imaginedScene.map} imageDataUrl={store.imaginedScene.map.imageDataUrl ?? (cachedBackground && cachedBackground.id === store.imaginedScene.map.imageId ? cachedBackground.dataUrl : undefined)} onObject={store.interactMap} onExit={(label) => { void store.imagine(`I follow the way toward ${label}.`) }} onSecret={findSecret} foundSecrets={[0, 1].map((index) => store.foundSecrets.includes(`${secretSceneKey}:${index}`))} />)}
         <PixiStage
+          key={`story-stage:${shopPhase === 'closed' ? shopVisit : shopVisit - 1}`}
+          sceneKey={`${scene.id}:${store.imaginedScene ? store.log.findLast((entry) => entry.imaginedScene)?.id ?? '' : ''}`}
           backdrop={scene.backdrop}
+          generatedBackdrop={Boolean(store.imaginedScene?.map)}
+          actions={store.imaginedScene?.actions ?? []}
           cast={cast}
           characters={characters}
           activeCharacterId={store.activeCharacterId}
@@ -126,10 +237,22 @@ export default function App() {
           speakTick={store.speakTick}
           onSelect={store.openDialogue}
           onMove={store.moveCharacter}
+          equippedItems={store.equippedItems}
+          accessoryFits={store.accessoryFits}
+          shopPhase={shopPhase}
         />
-        <p className="stage-hint">Drag the background to look around</p>
+        <MapDecorations key={secretSceneKey} items={placedDecorations} onMove={(index, x, y) => store.moveItem(secretSceneKey, index, x, y)} onResize={(index, size) => store.resizeItem(secretSceneKey, index, size)} onRemove={(index) => store.removeItem(secretSceneKey, index)} />
+        {shopPhase === 'closed' && <CharacterNameTags cast={cast} characters={characters} playerRole={store.playerRole} onMove={store.moveCharacter} />}
+        <p className="stage-hint">Explore the scenery · {store.imaginedScene?.map.backdropId ? 'Drag props to move' : 'Drag the background to look around'}</p>
+        {!isEnding && !store.imaginedScene?.map.tiles && <div className="scenery-layer" aria-label="Scenery to explore">
+          <div className="scenery-cloud" aria-hidden="true">{scenery.upper}</div>
+          {scenery.objects.map((symbol, index) => {
+            const found = store.foundSecrets.includes(`${secretSceneKey}:${index}`)
+            return <button key={`${secretSceneKey}:${index}`} type="button" className={`scenery-prop scenery-prop--${index}${found ? ' scenery-prop--found' : ''}`} style={sceneryPositions[index] ? { left: `${sceneryPositions[index].x * 100}%`, top: `${sceneryPositions[index].y * 100}%`, right: 'auto', bottom: 'auto' } : undefined} onPointerDown={(event) => startSceneryDrag(event, index)} onPointerMove={moveScenery} onPointerUp={finishSceneryDrag} onPointerCancel={finishSceneryDrag} onClick={() => { if (suppressSceneryClick.current === index) { suppressSceneryClick.current = null; return } if (!found) findSecret(index) }} aria-label={`${found ? 'Move' : 'Search or move'} the ${scenery.labels[index]}`} title={`${found ? 'Drag to move' : 'Search or drag to move'} the ${scenery.labels[index]}`}>{symbol}{!found && <span className="scenery-prop__secret" aria-hidden="true">✦</span>}</button>
+          })}
+        </div>}
 
-        {showUserSpeech && latestQuestion && playerCharacter && playerPlacement && stageSize.width > 0 && (
+        {shopPhase === 'closed' && showUserSpeech && latestQuestion && playerCharacter && playerPlacement && stageSize.width > 0 && (
           <div
             className="map-speech map-speech--player"
             style={bubblePosition(playerPlacement, playerCharacter, stageSize, bubbleWidth)}
@@ -141,7 +264,7 @@ export default function App() {
           </div>
         )}
 
-        {activeCharacter && activePlacement && stageSize.width > 0 && !showUserSpeech && (store.pending || latestReply) && (
+        {shopPhase === 'closed' && activeCharacter && activePlacement && stageSize.width > 0 && !showUserSpeech && (store.pending || latestReply) && (
           <div
             className="map-speech"
             style={bubblePosition(activePlacement, activeCharacter, stageSize, bubbleWidth)}
@@ -158,13 +281,18 @@ export default function App() {
         <header className="topbar">
           <div>
             <p className="topbar__tale">{tale.title}</p>
-            <h1>{scene.title}</h1>
+            <h1>{store.imaginedScene?.title ?? scene.title}</h1>
           </div>
         </header>
+        </div>
+        </div>
+        {shopPhase !== 'closed' && <ShopStage phase={shopPhase} visitor={store.playerRole === 'visitor' || !playerPlacement} player={characters.find((character) => character.id === store.playerRole)} equippedItems={store.equippedItems} accessoryFits={store.accessoryFits} category={shopCategory} onCategory={setShopCategory} />}
       </div>
 
       <aside className="play__rail">
-        <nav className="rail-nav">
+        <div className="coin-bar"><span className="coin-balance" aria-live="polite">🪙 {store.coins} coins</span><div className="coin-bar__actions"><button type="button" className={`button button--small${inventoryOpen ? ' button--on' : ''}`} onClick={() => { store.closeDialogue(); setMiniGame(null); setInventoryOpen(true); setCompanionMenuOpen(false); setCodexOpen(false); setScannerOpen(false); if (shopPhase === 'open') setShopPhase('leaving') }} disabled={shopPhase === 'entering' || shopPhase === 'leaving'}>🎒 My items</button><button type="button" className="button button--small" onClick={shopPhase === 'open' ? () => setShopPhase('leaving') : enterShop} disabled={shopPhase === 'entering' || shopPhase === 'leaving'} aria-expanded={shopPhase === 'open'}>🛍️ Store</button></div></div>
+        {treasureMessage && shopPhase === 'closed' && <p className="treasure-message" role="status">{treasureMessage}<button type="button" className="icon-button" onClick={() => setTreasureMessage(null)} aria-label="Dismiss treasure message">✕</button></p>}
+        {shopPhase === 'closed' && <nav className="rail-nav">
           {canInvite && (
             <button type="button" className="button button--small" onClick={() => { store.closeDialogue(); setCompanionMenuOpen(true); setCodexOpen(false); setScannerOpen(false) }}>
               Add character
@@ -180,9 +308,17 @@ export default function App() {
           <button type="button" className="button button--small" onClick={store.backToMap}>
             Maps
           </button>
-        </nav>
+        </nav>}
 
-        {scannerOpen && canInvite ? (
+        {shopPhase === 'open' ? <StorePanel page={shopCategory} onPage={setShopCategory} coins={store.coins} owned={store.ownedItems} placed={placedDecorations.map((item) => item.id)} equipped={store.equippedItems} accessoryFits={store.accessoryFits} characters={characters.filter((character) => character.id === store.playerRole || cast.some((placement) => placement.characterId === character.id))} playerRole={store.playerRole} onBuy={store.buyItem} onPlace={(id) => store.placeItem(secretSceneKey, id)} onEquip={store.equipItem} onFit={store.setAccessoryFit} onClose={() => setShopPhase('leaving')} /> : shopPhase !== 'closed' ? <section className="shop-transition" role="status">{shopPhase === 'entering' ? 'Walking into the Story Store…' : 'Returning to your story…'}</section> : miniGame ? (
+          miniGame.kind === 'pairs'
+            ? <MemoryGame key={`${miniGame.character.id}:${secretSceneKey}`} character={miniGame.character} onClose={() => setMiniGame(null)} onWin={store.awardCoins} />
+            : miniGame.kind === 'echo'
+              ? <SequenceGame key={`${miniGame.character.id}:${secretSceneKey}`} character={miniGame.character} onClose={() => setMiniGame(null)} onWin={store.awardCoins} />
+              : <ExtraGame key={`${miniGame.kind}:${miniGame.character.id}:${secretSceneKey}`} kind={miniGame.kind} character={miniGame.character} onClose={() => setMiniGame(null)} onWin={store.awardCoins} />
+        ) : inventoryOpen ? (
+          <InventoryPanel owned={store.ownedItems} characters={characters.filter((character) => character.id === store.playerRole || cast.some((placement) => placement.characterId === character.id))} playerRole={store.playerRole} equipped={store.equippedItems} onPlace={(id) => store.placeItem(secretSceneKey, id)} onEquip={store.equipItem} onClose={() => setInventoryOpen(false)} />
+        ) : scannerOpen && canInvite ? (
           <DrawingScanner
             onCreate={store.addScannedCompanion}
             onChooseReadyMade={() => { setScannerOpen(false); setCodexOpen(true) }}
@@ -213,17 +349,20 @@ export default function App() {
             source={store.llmSource}
             onSay={store.say}
             onClose={store.closeDialogue}
+            onPlay={() => startRandomGame(activeCharacter)}
           />
         ) : (
           <section className="scene-panel">
             <div className="scene-panel__scroll">
-              {scene.objective && <p className="scene-panel__objective">{scene.objective}</p>}
-              {variant.narration.split('\n\n').map((paragraph, index) => (
+              {!store.imaginedScene && scene.objective && <p className="scene-panel__objective">{scene.objective}</p>}
+              {(store.imaginedScene?.narration ?? variant.narration).split('\n\n').map((paragraph, index) => (
                 <p key={index} className="scene-panel__text">
                   {paragraph}
                 </p>
               ))}
-              {!isEnding && <p className="scene-panel__hint">Tap a character to talk, drag them to move, or drag the background to look around.</p>}
+              <ListenButton text={store.imaginedScene?.narration ?? variant.narration} />
+              {isEnding && <button type="button" className="button button--primary ending__open" onClick={() => setEndingOpen(true)}>View the ending</button>}
+              {!isEnding && <p className="scene-panel__hint">Tap a character to talk or drag them to move. Choose an action below, or write your own idea.</p>}
               {scene.id === 'forest-path' && canInvite && !store.codexDismissed && (
                 <div className="companion-offer">
                   <strong>You can add a character whenever you like.</strong>
@@ -234,17 +373,30 @@ export default function App() {
                 </div>
               )}
             </div>
-            {!isEnding && <ChoiceButtons choices={variant.anchors} onChoose={store.chooseAnchor} />}
+            {!isEnding && <form className="imagine-form" onSubmit={(event) => { event.preventDefault(); const idea = storyIdea.trim(); if (!idea) return; const previousCount = useStory.getState().log.length; void store.imagine(idea).then(() => { if (useStory.getState().log.length > previousCount) setStoryIdea('') }) }}>
+              <label htmlFor="story-idea">What happens next? Make up your own idea.</label>
+              <textarea id="story-idea" value={storyIdea} onChange={(event) => setStoryIdea(event.target.value)} maxLength={300} placeholder="A glowing bridge appears across the stream…" rows={3} disabled={store.imagining} />
+              {store.imagineNotice && <p className="imagine-form__notice" role="status">{store.imagineNotice}</p>}
+              <button className="button button--primary" type="submit" disabled={store.imagining || !storyIdea.trim()}>{store.imagining ? 'Creating your scene…' : 'Create my scene'}</button>
+            </form>}
+            {!isEnding && (store.imaginedScene ? <div className="choices">
+              <p className="choices__prompt">What do you do? You can also write your own idea above.</p>
+              <div className="choices__list">
+                {(store.imaginedScene.choices ?? []).map((choice, index) => <button key={`${index}-${choice}`} type="button" className="choice" disabled={store.imagining} onClick={() => { void store.imagine(choice) }}><span className="choice__kind choice__kind--act">Do</span><span>{choice}</span></button>)}
+              </div>
+              <button type="button" className="button button--small" disabled={store.imagining} onClick={() => { void store.imagine('Bring my story to a satisfying ending.', true) }}>Finish my story</button>
+            </div> : <ChoiceButtons choices={variant.anchors} onChoose={store.chooseAnchor} />)}
           </section>
         )}
 
         {logOpen && <StoryLog log={store.log} onClose={() => setLogOpen(false)} />}
       </aside>
 
-      {isEnding && (
+      {isEnding && endingOpen && (
         <EndingCard
           scene={scene}
-          narration={variant.narration}
+          narration={store.imaginedScene?.narration ?? variant.narration}
+          title={store.imaginedScene?.title}
           log={store.log}
           taleId={tale.id}
           role={store.playerRole}
@@ -252,7 +404,8 @@ export default function App() {
           companionIds={store.companionIds}
           characterPositions={store.characterPositions}
           onRestart={() => store.startTale(tale.id, store.playerRole)}
-          onMap={store.restart}
+          onMap={store.backToMap}
+          onClose={() => setEndingOpen(false)}
         />
       )}
     </main>

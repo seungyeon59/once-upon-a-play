@@ -13,6 +13,8 @@ import { mockReply } from './mock.ts'
 import { buildContextBlock, buildSystemPrompt, SPEAK_TOOL } from './persona.ts'
 import { checkChildInput, filterCharacterReply, isChoiceSafe } from './safety.ts'
 import { resolveCustomCharacter } from './customCharacter.ts'
+import { createImagineHandler } from './imagine.ts'
+import { createNarrateHandler } from './narrate.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DIST_DIR = join(HERE, '..', 'dist')
@@ -63,6 +65,36 @@ app.use('/api/chat', (req, res, next) => {
   }
   next()
 })
+
+const imagineUsage = new Map<string, { count: number; resetAt: number }>()
+app.use('/api/imagine', (req, res, next) => {
+  const now = Date.now()
+  const ip = req.ip ?? 'unknown'
+  const previous = imagineUsage.get(ip)
+  const usage = previous && previous.resetAt > now ? previous : { count: 0, resetAt: now + 60 * 60 * 1000 }
+  usage.count++
+  imagineUsage.set(ip, usage)
+  if (usage.count > 30) {
+    res.setHeader('Retry-After', Math.ceil((usage.resetAt - now) / 1000))
+    res.status(429).json({ error: 'Scene creation limit reached. Please try again later.' })
+    return
+  }
+  next()
+})
+app.post('/api/imagine', createImagineHandler(client, MODEL))
+
+const narrationUsage = new Map<string, { count: number; resetAt: number }>()
+app.use('/api/narrate', (req, res, next) => {
+  const now = Date.now()
+  const ip = req.ip ?? 'unknown'
+  const previous = narrationUsage.get(ip)
+  const usage = previous && previous.resetAt > now ? previous : { count: 0, resetAt: now + 60 * 60 * 1000 }
+  usage.count++
+  narrationUsage.set(ip, usage)
+  if (usage.count > 20) { res.status(429).json({ error: 'Take a little break before listening again.' }); return }
+  next()
+})
+app.post('/api/narrate', createNarrateHandler(process.env.ELEVENLABS_API_KEY))
 
 /* --------------------------------------------------------------- logging --- */
 

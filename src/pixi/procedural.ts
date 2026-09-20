@@ -25,6 +25,7 @@ export interface ProceduralState {
   facing: 1 | -1
   dragging: boolean
   land: number
+  walking: number
 }
 
 export function createProceduralState(baseScale: number, baseX: number, baseY: number, facing: 1 | -1): ProceduralState {
@@ -41,6 +42,7 @@ export function createProceduralState(baseScale: number, baseX: number, baseY: n
     facing,
     dragging: false,
     land: 0,
+    walking: 0,
   }
 }
 
@@ -75,13 +77,14 @@ export function tickProcedural(sprite: Sprite, state: ProceduralState, dt: numbe
   const gesture = Math.sin(state.phase * 2.2 + 0.6) * state.talk
   const landing = Math.sin((1 - state.land) * Math.PI * 3) * state.land
 
-  const lift = idle * 2.5 + Math.abs(talk) * 11 + state.hover * 4 + state.focus * 3 + Math.abs(landing) * 10
+  const stride = Math.abs(Math.sin(state.phase * 5)) * state.walking
+  const lift = idle * 2.5 + stride * 11 + Math.abs(talk) * 11 + state.hover * 4 + state.focus * 3 + Math.abs(landing) * 10
   const squash = idle * 0.014 + talk * 0.055 - landing * 0.065
   const grow = state.baseScale * (1 + state.hover * 0.06 + state.focus * 0.05)
 
   sprite.x = state.baseX + Math.sin(state.phase * 0.55) * 2 + gesture * 8
   sprite.y = state.baseY - lift
-  sprite.rotation = Math.sin(state.phase * 0.65) * 0.018 + gesture * 0.11 + landing * 0.08
+  sprite.rotation = Math.sin(state.phase * 0.65) * 0.018 + Math.sin(state.phase * 5) * state.walking * 0.045 + gesture * 0.11 + landing * 0.08
   sprite.scale.set(state.facing * grow * (1 - squash), grow * (1 + squash))
 }
 

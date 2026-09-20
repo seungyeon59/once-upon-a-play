@@ -72,7 +72,37 @@ export function paintBackdrop(kind: BackdropKind, width: number, height: number)
       paintHearth(g, width, height)
       break
   }
+  paintBackdropDetails(g, kind, width, height)
   return layer
+}
+
+function paintBackdropDetails(g: Graphics, kind: BackdropKind, w: number, h: number): void {
+  const random = rng(kind === 'forest-path' ? 201 : kind === 'fork' ? 202 : kind === 'cottage' ? 203 : 204)
+  if (kind === 'hearth') {
+    // Books, warm wall trim and sparks keep the interior distinct from the paths.
+    g.rect(w * 0.04, h * 0.12, w * 0.3, h * 0.025).fill(0x9b744e)
+    for (let i = 0; i < 10; i += 1) g.rect(w * (0.055 + i * 0.026), h * (0.07 + i % 3 * 0.012), w * 0.018, h * 0.05).fill([0x8a574e, 0x8a986e, 0xceb481][i % 3])
+    for (let i = 0; i < 12; i += 1) g.circle(w * (0.64 + random() * 0.16), h * (0.48 + random() * 0.22), 1 + random() * 3).fill({ color: 0xffd17a, alpha: 0.5 })
+    g.rect(0, h * 0.93, w, h * 0.012).fill({ color: 0xe1b579, alpha: 0.35 })
+    return
+  }
+  for (let i = 0; i < 38; i += 1) {
+    const x = random() * w
+    const y = h * (0.63 + random() * 0.34)
+    if (Math.abs(x - w * 0.5) < w * 0.16 && y > h * 0.76) continue
+    g.circle(x, y, 2 + random() * 3).fill({ color: i % 3 === 0 ? 0xffe4a1 : i % 3 === 1 ? 0xe7b0ca : 0xe8e0f3, alpha: 0.7 })
+    g.circle(x + 5, y + 3, 1 + random() * 2).fill({ color: 0xfaf3d6, alpha: 0.6 })
+  }
+  for (const x of [w * 0.11, w * 0.89]) {
+    g.ellipse(x, h * 0.74, w * 0.075, h * 0.037).fill({ color: 0x6d945f, alpha: 0.8 })
+    g.ellipse(x + w * 0.025, h * 0.72, w * 0.05, h * 0.029).fill({ color: 0x8cae70, alpha: 0.8 })
+  }
+  if (kind === 'fork') {
+    for (let i = 0; i < 8; i += 1) g.circle(w * (0.14 + random() * 0.22), h * (0.68 + random() * 0.24), 4 + random() * 3).fill(0xf2c5d8)
+  }
+  if (kind === 'cottage') {
+    for (let i = 0; i < 10; i += 1) g.circle(w * (0.31 + random() * 0.56), h * (0.72 + random() * 0.1), 3 + random() * 3).fill(0xf5d4a5)
+  }
 }
 
 /** Wider scenery with independent middle and near planes for camera parallax. */

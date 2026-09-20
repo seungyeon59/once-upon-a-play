@@ -136,6 +136,8 @@ export interface StoryEntry {
   ts: number
   /** Scene active when this moment happened, for illustrated storybook pages. */
   sceneId?: SceneId
+  /** Snapshot of a child-created scene, so each map keeps its own book page. */
+  imaginedScene?: ImaginedScene
 }
 
 /* ------------------------------------------------------------- protocol --- */
@@ -150,6 +152,7 @@ export interface ChatRequest {
   playerRole: PlayerRole
   companionId?: CharacterId | null
   companionNames?: string[]
+  companionProfiles?: CompanionProfile[]
   customCharacter?: { id: string; name: string; personality: string; talent?: import('../content/customProfile.ts').Talent; goal?: import('../content/customProfile.ts').Goal }
   sceneTitle: string
   objective: string
@@ -157,7 +160,10 @@ export interface ChatRequest {
   flags: Flags
   history: ChatTurn[]
   playerText: string
+  recentStory?: string[]
 }
+
+export interface CompanionProfile { id: string; name: string; personality: string; talent?: string; goal?: string }
 
 /** A suggestion carries no effects on purpose — clicking it just says the line. */
 export interface SuggestedChoice {
@@ -171,4 +177,71 @@ export interface ChatResponse {
   /** Set when the child's own message was stopped before reaching the model. */
   blocked?: { reason: string; message: string }
   source: 'llm' | 'mock'
+}
+
+export interface ImagineRequest {
+  idea: string
+  sceneTitle: string
+  narration: string
+  playerRole: PlayerRole
+  companions: string[]
+  companionProfiles?: CompanionProfile[]
+  recentStory: string[]
+  flags: Flags
+  cast?: string[]
+  storyState?: StoryState
+  ending?: boolean
+}
+
+export interface StoryState {
+  discoveries: string[]
+  promises: string[]
+  openThreads: string[]
+}
+
+/** A short sequence of whole-sprite actions performed when a generated scene appears. */
+export interface SceneAction {
+  characterId: string
+  action: 'walk' | 'gesture' | 'look'
+  x?: number
+  y?: number
+}
+
+export interface ImaginedScene {
+  title: string
+  narration: string
+  setting: string
+  choices?: string[]
+  storyState?: StoryState
+  ending?: boolean
+  actions?: SceneAction[]
+  map: {
+    backdropId?: import('../content/mapAssets.ts').BackdropId
+    props?: Array<{ id: import('../content/mapAssets.ts').PropId; x: number; y: number; size?: number; label: string; result: string }>
+    cast?: ScenePlacement[]
+    imageId?: string
+    imageDataUrl?: string
+    theme: 'forest' | 'meadow' | 'stream' | 'mountain' | 'night' | 'sky'
+    landmark: 'bridge' | 'tower' | 'pond' | 'garden' | 'cottage' | 'floating-island' | 'none'
+    tiles?: MapTile[][]
+    objects?: MapObject[]
+    spawn?: MapPoint
+    exit?: MapPoint & { label: string }
+  }
+}
+
+export type MapTile = 'grass' | 'path' | 'water' | 'stone' | 'flowers' | 'cloud' | 'cloudpath' | 'air'
+export interface MapPoint { x: number; y: number }
+export interface MapObject extends MapPoint {
+  type: 'bridge' | 'tower' | 'pond' | 'garden' | 'cottage' | 'lantern' | 'tree'
+  label: string
+  action: 'inspect' | 'cross' | 'enter'
+  result: string
+}
+
+export interface ImagineResponse {
+  scene: ImaginedScene
+  setFlags: Flags
+  source: 'llm' | 'mock'
+  blocked?: { message: string }
 }

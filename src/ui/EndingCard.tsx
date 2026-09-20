@@ -3,11 +3,13 @@ import type { Character, PlayerRole, Scene, StoryEntry } from '../state/types.ts
 import { Storybook } from './Storybook.tsx'
 
 interface EndingCardProps {
+  title?: string
   scene: Scene
   narration: string
   log: StoryEntry[]
   onRestart: () => void
   onMap: () => void
+  onClose: () => void
   taleId: string
   role: PlayerRole
   characters: Character[]
@@ -15,15 +17,16 @@ interface EndingCardProps {
   characterPositions: Record<string, Record<string, { x: number; y: number }>>
 }
 
-export function EndingCard({ scene, narration, log, onRestart, onMap, taleId, role, characters, companionIds, characterPositions }: EndingCardProps) {
+export function EndingCard({ scene, title, narration, log, onRestart, onMap, onClose, taleId, role, characters, companionIds, characterPositions }: EndingCardProps) {
   const ending = scene.ending
   const [bookOpen, setBookOpen] = useState(false)
 
   return (
     <div className="ending">
       <div className="ending__card">
+        <button type="button" className="button button--small ending__close" onClick={onClose} aria-label="Close ending">Back to final scene</button>
         <p className="ending__eyebrow">The end — for now</p>
-        <h2>{ending?.title ?? scene.title}</h2>
+        <h2>{title ?? ending?.title ?? scene.title}</h2>
         {ending?.blurb && <p className="ending__blurb">{ending.blurb}</p>}
         <button type="button" className="button button--primary ending__save" onClick={() => setBookOpen(true)}>
           Open storybook / Save as PDF
@@ -56,7 +59,7 @@ export function EndingCard({ scene, narration, log, onRestart, onMap, taleId, ro
           </button>
         </div>
       </div>
-      {bookOpen && <Storybook title={ending?.title ?? scene.title} log={log} onClose={() => setBookOpen(false)} taleId={taleId} endingSceneId={scene.id} role={role} characters={characters} companionIds={companionIds} characterPositions={characterPositions} />}
+      {bookOpen && <Storybook title={title ?? ending?.title ?? scene.title} log={log} onClose={() => setBookOpen(false)} taleId={taleId} endingSceneId={scene.id} role={role} characters={characters} companionIds={companionIds} characterPositions={characterPositions} />}
     </div>
   )
 }

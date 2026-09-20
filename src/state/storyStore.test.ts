@@ -1,7 +1,7 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 
-import type { ChatRequest, ChatResponse } from './types.ts'
+import type { ChatRequest, ChatResponse, ImagineResponse, StoryEntry } from './types.ts'
 
 /* ----------------------------------------------------- browser stand-ins --- */
 
@@ -25,9 +25,11 @@ let nextResponse: ChatResponse = {
   source: 'mock',
 }
 
-;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (_url: string, init: RequestInit) => {
+const imagineResponse: ImagineResponse = { scene: { title: 'The Starlit Bridge', narration: 'A bridge of stars appears over the stream.', setting: 'A starlit stream', map: { theme: 'night', landmark: 'bridge' } }, setFlags: { wolfFriendly: true }, source: 'llm' }
+
+;(globalThis as unknown as { fetch: typeof fetch }).fetch = (async (url: string, init: RequestInit) => {
   sentRequests.push(JSON.parse(String(init.body)) as ChatRequest)
-  return { ok: true, json: async () => nextResponse } as Response
+  return { ok: true, json: async () => url === '/api/imagine' ? imagineResponse : nextResponse } as Response
 }) as typeof fetch
 
 const { useStory } = await import('./storyStore.ts')
@@ -58,6 +60,117 @@ test('opening a character offers their starters', () => {
   const state = useStory.getState()
   assert.equal(state.activeCharacterId, 'wolf')
   assert.equal(state.suggestions.length, 3)
+})
+
+test('coins persist across stories and a hidden spot pays out only once', () => {
+  useStory.getState().startTale('red-riding-hood')
+  assert.equal(useStory.getState().discoverSecret('forest-path:0'), true)
+  assert.equal(useStory.getState().discoverSecret('forest-path:0'), false)
+  useStory.getState().awardCoins(8)
+  useStory.getState().awardCoins(-3)
+  assert.equal(useStory.getState().coins, 8)
+  useStory.getState().backToMap()
+  useStory.getState().resume()
+  assert.equal(useStory.getState().coins, 8)
+  assert.deepEqual(useStory.getState().foundSecrets, ['forest-path:0'])
+  useStory.getState().startTale('red-riding-hood')
+  assert.equal(useStory.getState().coins, 8)
+  assert.deepEqual(useStory.getState().foundSecrets, [])
+})
+
+test('store purchases charge once, decorations and outfits persist, and placement can be changed', () => {
+  useStory.getState().startTale('red-riding-hood')
+  const api = useStory.getState()
+  api.awardCoins(50)
+  assert.equal(api.buyItem('butterflies'), true)
+  assert.equal(api.buyItem('butterflies'), false)
+  assert.equal(useStory.getState().coins, 32)
+  assert.equal(api.placeItem('forest-path:authored', 'butterflies'), true)
+  assert.equal(api.placeItem('forest-path:authored', 'butterflies'), true)
+  api.moveItem('forest-path:authored', 0, 0.25, 0.6)
+  api.resizeItem('forest-path:authored', 0, 1.6)
+  api.resizeItem('forest-path:authored', 0, 99)
+  assert.deepEqual(useStory.getState().placedItems['forest-path:authored'][0], { id: 'butterflies', x: 0.25, y: 0.6, size: 1.6 })
+  assert.equal(useStory.getState().placedItems['forest-path:authored'].length, 2)
+  assert.equal(api.buyItem('crown'), true)
+  api.equipItem('red', 'crown')
+  api.setAccessoryFit('red', 'crown', { x: 0.12, y: -0.08, scale: 0.8 })
+  useStory.getState().backToMap()
+  useStory.getState().resume()
+  assert.equal(useStory.getState().equippedItems.red, 'crown')
+  assert.deepEqual(useStory.getState().accessoryFits['red:crown'], { x: 0.12, y: -0.08, scale: 0.8 })
+  assert.equal(useStory.getState().placedItems['forest-path:authored'][0].id, 'butterflies')
+  useStory.getState().removeItem('forest-path:authored', 0)
+  assert.equal(useStory.getState().placedItems['forest-path:authored'].length, 1)
+  assert.ok(useStory.getState().ownedItems.includes('butterflies'))
+  assert.equal(useStory.getState().placeItem('forest-path:authored', 'butterflies'), true)
+  assert.equal(useStory.getState().coins, 18)
+})
+
+test('an imagined scene changes the visible story, flags, save, and later dialogue context', async () => {
+  useStory.getState().startTale('red-riding-hood')
+  await useStory.getState().imagine('A bridge of stars appears')
+  let state = useStory.getState()
+  assert.equal(state.imaginedScene?.title, 'The Starlit Bridge')
+  assert.deepEqual(state.imaginedScene?.map, { theme: 'night', landmark: 'bridge' })
+  assert.equal(state.flags.wolfFriendly, true)
+  assert.equal(state.log.at(-1)?.text, imagineResponse.scene.narration)
+  assert.deepEqual(state.log.at(-1)?.imaginedScene, imagineResponse.scene)
+  assert.match(localStorage.getItem('tale-weaver:v1') ?? '', /Starlit Bridge/)
+  state.openDialogue('wolf')
+  await useStory.getState().say('Look at the bridge!')
+  assert.equal(sentRequests.at(-1)?.narration, imagineResponse.scene.narration)
+  assert.ok(sentRequests.at(-1)?.recentStory?.some((line) => line.includes('bridge of stars')))
+})
+
+test('a child choice carries the generated story memory into the next scene', async () => {
+  useStory.getState().startTale('red-riding-hood')
+  useStory.setState({ imaginedScene: { ...imagineResponse.scene, choices: ['Cross the bridge'], storyState: { discoveries: ['The bridge glows at night'], promises: ['Help Gray'], openThreads: ['Find the far bank'] } } })
+  await useStory.getState().imagine('Cross the bridge')
+  const request = sentRequests.at(-1) as unknown as { idea: string; storyState: { discoveries: string[] }; recentStory: string[] }
+  assert.equal(request.idea, 'Cross the bridge')
+  assert.deepEqual(request.storyState.discoveries, ['The bridge glows at night'])
+  assert.equal(useStory.getState().log.at(-2)?.text, 'Cross the bridge')
+})
+
+test('moving and resizing a prop updates the saved scene within bounds', () => {
+  useStory.getState().startTale('red-riding-hood')
+  useStory.setState({ imaginedScene: { title: 'Space', narration: 'A rocket waits.', setting: 'Space', map: { theme: 'forest', landmark: 'none', backdropId: 'space', props: [{ id: 'rocket', x: 0.3, y: 0.6, label: 'Rocket', result: 'It is ready.' }] } } })
+  useStory.getState().updateMapProp(0, { x: 0.65, y: 0.72, size: 1.4 })
+  const updated = useStory.getState().imaginedScene?.map.props?.[0]
+  assert.deepEqual([updated?.x, updated?.y, updated?.size], [0.65, 0.72, 1.4])
+  assert.match(localStorage.getItem('tale-weaver:v1') ?? '', /"size":1.4/)
+  useStory.getState().updateMapProp(0, { x: 4, size: 9 })
+  assert.deepEqual(useStory.getState().imaginedScene?.map.props?.[0], updated)
+})
+
+test('deleting a prop removes only that prop and persists the result', () => {
+  useStory.getState().startTale('red-riding-hood')
+  useStory.setState({ imaginedScene: { title: 'Garden', narration: 'Two things appear.', setting: 'Garden', map: { theme: 'forest', landmark: 'none', backdropId: 'garden', props: [
+    { id: 'flower', x: 0.3, y: 0.6, label: 'Flower', result: 'It blooms.' },
+    { id: 'butterfly', x: 0.7, y: 0.6, label: 'Butterfly', result: 'It flies.' },
+  ] } } })
+  useStory.getState().removeMapProp(0)
+  assert.deepEqual(useStory.getState().imaginedScene?.map.props?.map((prop) => prop.id), ['butterfly'])
+  assert.match(localStorage.getItem('tale-weaver:v1') ?? '', /butterfly/)
+  useStory.getState().removeMapProp(10)
+  assert.equal(useStory.getState().imaginedScene?.map.props?.length, 1)
+})
+
+test('the book keeps edits to the latest generated map without changing earlier maps', () => {
+  useStory.getState().startTale('red-riding-hood')
+  const first = { title: 'First garden', narration: 'A flower blooms.', setting: 'Garden', map: { theme: 'forest' as const, landmark: 'none' as const, backdropId: 'garden' as const, props: [{ id: 'flower' as const, x: 0.3, y: 0.6, label: 'Flower', result: 'It blooms.' }] } }
+  const second = { title: 'Second garden', narration: 'A butterfly lands.', setting: 'Garden', map: { theme: 'forest' as const, landmark: 'none' as const, backdropId: 'garden' as const, props: [{ id: 'butterfly' as const, x: 0.7, y: 0.6, label: 'Butterfly', result: 'It flies.' }] } }
+  const log = useStory.getState().log.concat(
+    { id: 'generated-1', kind: 'narration', text: first.narration, ts: 1, sceneId: 'forest-path', imaginedScene: first },
+    { id: 'generated-2', kind: 'narration', text: second.narration, ts: 2, sceneId: 'forest-path', imaginedScene: second },
+  ) as StoryEntry[]
+  useStory.setState({ imaginedScene: second, log })
+  useStory.getState().updateMapProp(0, { size: 1.5 })
+  const updated = useStory.getState()
+  assert.equal(updated.log.at(-1)?.imaginedScene?.map.props?.[0].size, 1.5)
+  assert.equal(updated.log.at(-2)?.imaginedScene?.map.props?.[0].size, undefined)
+  assert.match(localStorage.getItem('tale-weaver:v1') ?? '', /"size":1.5/)
 })
 
 test('talking sends the live scene context and records both sides', async () => {
@@ -237,6 +350,7 @@ test('characters can be added in the first scene and again later', async () => {
   useStory.getState().openDialogue('bramble')
   await useStory.getState().say('Hello, Bramble!')
   assert.deepEqual(sentRequests.at(-1)?.companionNames, ['Moss', 'Bramble', 'Sunny'])
+  assert.deepEqual(sentRequests.at(-1)?.companionProfiles?.map((profile) => profile.name), ['Sunny'])
 })
 
 test('dragged character positions persist per scene and survive resume', () => {

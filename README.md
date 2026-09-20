@@ -87,6 +87,33 @@ conversation suggestions can only say a line; they cannot change the plot.
 Incoming and outgoing dialogue passes through the safety filters in
 `server/safety.ts`.
 
+Children can also type an idea into **What happens next?**. With `ANTHROPIC_API_KEY`,
+Claude writes a new scene and selects from 35 prebuilt SVG backdrops and
+54 props. It can combine them, place the current characters, and give
+props short interactions. For example, a space backdrop can contain a laptop
+for a hackathon story. The server checks all asset IDs, coordinates, and
+character IDs before rendering. Tap a prop to add its discovery to the story,
+or tap the exit arrow to continue. The scene's narration enters the story log
+and future scene requests. No image generation API or image key is needed.
+Children can drag a prop to move it. Selecting a prop shows a frame whose
+lower-right handle changes its size, plus a small panel with its name and
+Delete. Tapping outside the prop closes the panel. **Next scene** in the upper
+right asks for the next scene. Prop placement, size, and deletion are saved locally.
+Without `ANTHROPIC_API_KEY`, the game records the child's idea in a simple demo
+scene. Older saved maps made with the tile or generated-image approach still
+display when resumed.
+
+The **Listen to this scene** button reads the visible scene using ElevenLabs
+Text to Speech. Add `ELEVENLABS_API_KEY` to the local `.env` file; optionally set
+`ELEVENLABS_VOICE_ID` to a voice from your ElevenLabs account. The server keeps
+the key private and returns MP3 audio to the browser. Listening can be stopped,
+and replaying the same scene in one page session reuses the generated audio.
+English scene narration uses the storyteller voice, while attributed dialogue
+uses the matching character voice. Voice IDs can be overridden with the
+`ELEVENLABS_RED_VOICE_ID`, `ELEVENLABS_WOLF_VOICE_ID`, and
+`ELEVENLABS_GRANDMA_VOICE_ID` variables. Unattributed dialogue stays with the
+storyteller voice.
+
 ## Check the build
 
 ```bash

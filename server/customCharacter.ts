@@ -1,6 +1,6 @@
-import type { Character, ChatRequest } from '../src/state/types.ts'
+import type { Character, ChatRequest, CompanionProfile } from '../src/state/types.ts'
 import { checkChildInput } from './safety.ts'
-import { isTalent, isGoal } from '../src/content/customProfile.ts'
+import { isTalent, isGoal, isCustomProfileText } from '../src/content/customProfile.ts'
 
 /** The browser sends profile choices; the server owns the prompt template. */
 export function resolveCustomCharacter(request: ChatRequest): Character | undefined {
@@ -8,10 +8,10 @@ export function resolveCustomCharacter(request: ChatRequest): Character | undefi
   if (!custom || custom.id !== request.characterId || !/^custom-\d{10,}$/.test(custom.id)) return undefined
   const name = custom.name.trim()
   const personality = custom.personality.trim()
-  if (!/^[\p{L}\p{N} .'-]{1,24}$/u.test(name) || personality.length < 2 || personality.length > 100) return undefined
+  if (!/^[\p{L}\p{N} .'-]{1,24}$/u.test(name) || !isCustomProfileText(personality)) return undefined
   const verdict = checkChildInput(personality)
   if (!verdict.ok) return undefined
-  if ((custom.talent !== undefined && !isTalent(custom.talent)) || (custom.goal !== undefined && !isGoal(custom.goal))) return undefined
+  if ((custom.talent !== undefined && !isTalent(custom.talent) && (!isCustomProfileText(custom.talent) || !checkChildInput(custom.talent).ok)) || (custom.goal !== undefined && !isGoal(custom.goal) && (!isCustomProfileText(custom.goal) || !checkChildInput(custom.goal).ok))) return undefined
   return {
     id: custom.id,
     name,
@@ -29,4 +29,16 @@ export function resolveCustomCharacter(request: ChatRequest): Character | undefi
     starters: [],
     safeFallback: `${name} smiles and waits for you to go on.`,
   }
+}
+
+export function safeCompanionProfiles(value: unknown): CompanionProfile[] {
+  if (!Array.isArray(value)) return []
+  return value.slice(0, 5).flatMap((raw): CompanionProfile[] => {
+    if (!raw || typeof raw !== 'object') return []
+    const profile = raw as Record<string, unknown>
+    if (typeof profile.id !== 'string' || !/^custom-\d{10,}$/.test(profile.id) || typeof profile.name !== 'string' || !/^[\p{L}\p{N} .'-]{1,24}$/u.test(profile.name) || !isCustomProfileText(profile.personality) || !checkChildInput(profile.personality).ok) return []
+    if (profile.talent !== undefined && !isTalent(profile.talent) && (!isCustomProfileText(profile.talent) || !checkChildInput(profile.talent).ok)) return []
+    if (profile.goal !== undefined && !isGoal(profile.goal) && (!isCustomProfileText(profile.goal) || !checkChildInput(profile.goal).ok)) return []
+    return [{ id: profile.id, name: profile.name, personality: profile.personality, talent: profile.talent as string | undefined, goal: profile.goal as string | undefined }]
+  })
 }
