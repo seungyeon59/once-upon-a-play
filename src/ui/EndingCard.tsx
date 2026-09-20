@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { Character, PlayerRole, Scene, StoryEntry } from '../state/types.ts'
+import type { Character, Flags, PlayerRole, Scene, StoryEntry } from '../state/types.ts'
+import type { AccessoryFit } from '../content/shopItems.ts'
 import { Storybook } from './Storybook.tsx'
 
 interface EndingCardProps {
@@ -15,9 +16,13 @@ interface EndingCardProps {
   characters: Character[]
   companionIds: string[]
   characterPositions: Record<string, Record<string, { x: number; y: number }>>
+  flags: Flags
+  equippedItems: Record<string, string>
+  accessoryFits: Record<string, AccessoryFit>
+  placedItems: Record<string, Array<{ id: string; x: number; y: number; size?: number }>>
 }
 
-export function EndingCard({ scene, title, narration, log, onRestart, onMap, onClose, taleId, role, characters, companionIds, characterPositions }: EndingCardProps) {
+export function EndingCard({ scene, title, narration, log, onRestart, onMap, onClose, taleId, role, characters, companionIds, characterPositions, flags, equippedItems, accessoryFits, placedItems }: EndingCardProps) {
   const ending = scene.ending
   const [bookOpen, setBookOpen] = useState(false)
 
@@ -59,7 +64,7 @@ export function EndingCard({ scene, title, narration, log, onRestart, onMap, onC
           </button>
         </div>
       </div>
-      {bookOpen && <Storybook title={title ?? ending?.title ?? scene.title} log={log} onClose={() => setBookOpen(false)} taleId={taleId} endingSceneId={scene.id} role={role} characters={characters} companionIds={companionIds} characterPositions={characterPositions} />}
+      {bookOpen && <Storybook title={title ?? ending?.title ?? scene.title} log={log} onClose={() => setBookOpen(false)} taleId={taleId} endingSceneId={scene.id} role={role} characters={characters} companionIds={companionIds} characterPositions={characterPositions} flags={flags} equippedItems={equippedItems} accessoryFits={accessoryFits} placedItems={placedItems} />}
     </div>
   )
 }

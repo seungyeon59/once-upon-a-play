@@ -60,59 +60,147 @@ button { font: inherit; }
 
 /* ------------------------------------------------------------ map select --- */
 
+/*
+ * Sunny paper and wax crayon. Every outline here is drawn twice and never quite
+ * on top of itself — the same idea as the hand-drawn player sprite, so the
+ * title screen and the map read as one world.
+ */
 .maps {
-  height: 100%;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2rem;
-  padding: 2rem;
-  background: radial-gradient(circle at 50% 20%, #47604f, #1d2e28 70%);
+  gap: 1.75rem;
+  padding: 2rem 1.5rem 2.75rem;
+  overflow-y: auto;
+  background-color: #ffd94f;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23p)' opacity='0.3'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 50% 4%, #fff6c9 0%, rgba(255, 246, 201, 0) 58%),
+    linear-gradient(180deg, #ffe793 0%, #ffd23f 100%);
+  background-size: 180px 180px, auto, auto;
 }
 
-.maps__head { text-align: center; color: var(--parchment); max-width: 34rem; }
-.maps__head h1 { font-family: Georgia, serif; font-size: clamp(2.4rem, 6vw, 3.4rem); margin: 0 0 0.5rem; }
-.maps__head p { margin: 0; opacity: 0.82; font-size: 1.05rem; }
+.maps__head { position: relative; text-align: center; color: var(--ink); max-width: 36rem; }
+.maps__rainbow { display: block; width: clamp(10rem, 26vw, 15rem); margin: 0 auto -0.6rem; overflow: visible; }
+.maps__head h1 {
+  font-family: Georgia, serif;
+  font-size: clamp(2.4rem, 6vw, 3.6rem);
+  margin: 0 0 0.6rem;
+}
+/* The waxy edge: a dark offset rather than a stroke, which would eat the serif. */
+.maps__head h1 span { text-shadow: 2px 2px 0 rgba(43, 33, 25, 0.22); }
+.maps__head p { margin: 0; color: #6a4f21; font-size: 1.05rem; }
 
 .maps__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 1.25rem;
+  gap: 1.5rem;
   width: min(100%, 60rem);
 }
 
 .map-card {
+  --crayon: #d8432e;
+  position: relative;
   display: flex;
   flex-direction: column;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--parchment);
-  box-shadow: var(--shadow);
+  gap: 0.55rem;
+  padding: 0.7rem 0.7rem 0.9rem;
+  border: 3px solid var(--crayon);
+  border-radius: 255px 16px 235px 14px / 14px 225px 18px 255px;
+  background: #fffdf2;
+  box-shadow: 0 10px 22px rgba(120, 84, 10, 0.18);
   cursor: pointer;
   text-align: left;
+  font: inherit;
+  color: var(--ink);
   transition: transform 0.15s ease;
 }
-.map-card:hover { transform: translateY(-4px); }
-.map-card--locked { opacity: 0.45; cursor: default; }
-.map-card--locked:hover { transform: none; }
+/* The second pass of the crayon, a little off the first. */
+.map-card::after {
+  content: '';
+  position: absolute;
+  inset: -7px -4px -3px -8px;
+  border: 2px solid var(--crayon);
+  border-radius: 18px 245px 14px 230px / 240px 16px 250px 15px;
+  opacity: 0.4;
+  pointer-events: none;
+}
+.maps__grid > :nth-child(odd) { transform: rotate(-1.1deg); }
+.maps__grid > :nth-child(even) { transform: rotate(0.9deg); }
+/* Locked cards are excluded rather than reset, so they keep their own tilt
+   instead of snapping straight when the pointer crosses them. */
+.map-card:not(.map-card--locked):hover,
+.map-card:not(.map-card--locked):focus-visible { transform: rotate(0deg) translateY(-5px); }
+.map-card--picked { background: #fff7d8; }
+.map-card--picked::after { opacity: 0.85; }
+.map-card--locked { --crayon: #b3a88d; opacity: 0.6; cursor: default; }
 
-.map-card__art { display: block; height: 130px; }
-.map-card__art--forest-path { background: linear-gradient(170deg, #8fa9b8 0%, #4a5c3f 55%, #1d2e28 100%); }
-.map-card__art--locked { background: linear-gradient(170deg, #9a9a92, #55554f); }
+.map-card__art {
+  display: block;
+  height: 120px;
+  border: 2px solid rgba(43, 33, 25, 0.3);
+  border-radius: 16px 190px 14px 200px / 180px 12px 195px 15px;
+}
+.map-card__art--forest-path {
+  background:
+    radial-gradient(circle at 80% 20%, #ffd233 0 13%, transparent 14%),
+    linear-gradient(196deg, transparent 47%, #ecd9a4 47% 55%, transparent 55%),
+    linear-gradient(180deg, #b9e6f4 0%, #d8f0cf 54%, #86c26a 100%);
+}
+.map-card__art--locked { background: linear-gradient(170deg, #ded6c2, #b6ab90); }
 
-.map-card__body { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.9rem 1rem 1.1rem; }
-.map-card__body strong { font-family: Georgia, serif; font-size: 1.1rem; }
+.map-card__body { display: flex; flex-direction: column; gap: 0.3rem; padding: 0 0.3rem; }
+.map-card__body strong { font-family: Georgia, serif; font-size: 1.15rem; color: var(--crayon); }
 .map-card__body span { color: var(--ink-soft); font-size: 0.9rem; }
 
-.role-picker { width: min(100%, 60rem); color: var(--parchment); }
-.role-picker h2 { margin: 0 0 0.75rem; font-family: Georgia, serif; font-size: 1.3rem; }
-.role-picker__options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
-.role-option { display: flex; flex-direction: column; gap: 0.35rem; min-height: 5.5rem; padding: 0.9rem; border: 2px solid transparent; border-radius: 12px; background: var(--parchment); color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
-.role-option:hover, .role-option:focus-visible { border-color: var(--gold); }
+.role-picker { width: min(100%, 60rem); color: var(--ink); }
+.role-picker h2 { margin: 0 0 0.85rem; font-family: Georgia, serif; font-size: 1.4rem; text-align: center; }
+.role-picker__options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.role-option {
+  --crayon: #2a74b8;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 5.5rem;
+  padding: 0.9rem 1rem;
+  border: 3px solid var(--crayon);
+  border-radius: 235px 15px 250px 16px / 16px 245px 14px 235px;
+  background: #fffdf2;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: transform 0.15s ease;
+}
+.role-option::after {
+  content: '';
+  position: absolute;
+  inset: -6px -3px -4px -7px;
+  border: 2px solid var(--crayon);
+  border-radius: 14px 240px 18px 250px / 235px 15px 245px 16px;
+  opacity: 0.38;
+  pointer-events: none;
+}
+.role-option:hover, .role-option:focus-visible { transform: translateY(-4px) rotate(-1deg); }
+.role-option strong { color: var(--crayon); }
 .role-option span { font-size: 0.85rem; color: var(--ink-soft); }
+
+/* The shared ghost button is parchment-on-dark; on this paper it would vanish. */
+.maps__resume {
+  border: 3px solid #8b4fc0;
+  border-radius: 200px 14px 210px 15px / 15px 205px 13px 200px;
+  background: #fffdf2;
+  color: #6b3a96;
+  padding: 0.6rem 1.4rem;
+}
+.maps__resume:hover:not(:disabled) { background: #fff7d8; }
+
+@media (prefers-reduced-motion: reduce) {
+  .map-card, .role-option { transition: none; }
+}
 
 /* ------------------------------------------------------------------ play --- */
 

@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { StoryEntry } from '../state/types.ts'
+import type { Flags, StoryEntry } from '../state/types.ts'
 import type { Character, PlayerRole } from '../state/types.ts'
-import { makeStoryPages } from './storyPages.ts'
+import type { AccessoryFit } from '../content/shopItems.ts'
+import { makeStoryPages, sceneItemKey } from './storyPages.ts'
 import { renderStoryArt } from './renderStoryArt.tsx'
 
-interface Props { title: string; log: StoryEntry[]; onClose: () => void; taleId: string; endingSceneId: string; role: PlayerRole; characters: Character[]; companionIds: string[]; characterPositions: Record<string, Record<string, { x: number; y: number }>> }
+interface Props { title: string; log: StoryEntry[]; onClose: () => void; taleId: string; endingSceneId: string; role: PlayerRole; characters: Character[]; companionIds: string[]; characterPositions: Record<string, Record<string, { x: number; y: number }>>; flags: Flags; equippedItems: Record<string, string>; accessoryFits: Record<string, AccessoryFit>; placedItems: Record<string, Array<{ id: string; x: number; y: number; size?: number }>> }
 
-export function Storybook({ title, log, onClose, taleId, endingSceneId, role, characters, companionIds, characterPositions }: Props) {
+export function Storybook({ title, log, onClose, taleId, endingSceneId, role, characters, companionIds, characterPositions, flags, equippedItems, accessoryFits, placedItems }: Props) {
   const pages = useMemo(() => makeStoryPages(log), [log])
   const [art, setArt] = useState<Record<string, string>>({})
   const [artError, setArtError] = useState(false)
@@ -21,7 +22,8 @@ export function Storybook({ title, log, onClose, taleId, endingSceneId, role, ch
         const images: Record<string, string> = {}
         for (const [index, page] of pages.entries()) {
           const id = sceneIds[index]
-          images[page.key] = await renderStoryArt(taleId, id, role, characters, companionIds, characterPositions[id], page.imaginedScene)
+          const decorations = placedItems[sceneItemKey(id, page.imaginedScene ? page.key : undefined)] ?? []
+          images[page.key] = await renderStoryArt(taleId, id, role, characters, companionIds, characterPositions[id], page.imaginedScene, { flags, equippedItems, accessoryFits, decorations })
           const preview = new Image()
           preview.src = images[page.key]
           await preview.decode()

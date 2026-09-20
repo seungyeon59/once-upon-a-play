@@ -26,6 +26,7 @@ import { MapDecorations } from './ui/MapDecorations.tsx'
 import { ShopStage } from './ui/ShopStage.tsx'
 import { CharacterNameTags } from './ui/CharacterNameTags.tsx'
 import { InventoryPanel } from './ui/InventoryPanel.tsx'
+import { sceneItemKey } from './ui/storyPages.ts'
 
 function bubblePosition(placement: ScenePlacement, character: Character, stage: { width: number; height: number }, width: number) {
   const x = Math.max(width / 2 + 12, Math.min(placement.x * stage.width, stage.width - width / 2 - 12))
@@ -130,7 +131,7 @@ export default function App() {
   const showUserSpeech = Boolean(latestQuestion && userSpeechFor === store.activeCharacterId)
   const canInvite = Boolean(scene && !isEnding)
   const availableReadyMade = CODEX_CHARACTERS.filter((character) => !store.companionIds.includes(character.id))
-  const secretSceneKey = `${scene?.id ?? ''}:${store.imaginedScene ? store.log.findLast((item) => item.imaginedScene)?.id ?? '' : 'authored'}`
+  const secretSceneKey = sceneItemKey(scene?.id ?? '', store.imaginedScene ? store.log.findLast((item) => item.imaginedScene)?.id ?? '' : undefined)
   const gameKinds = ['pairs', 'echo', 'odd', 'trail', 'catch', 'riddle'] as const
   const scenery = sceneryFor(store.imaginedScene?.map.backdropId ?? (scene?.backdrop === 'hearth' ? 'kitchen' : 'forest'), !store.imaginedScene && scene?.backdrop !== 'hearth')
   const placedDecorations = store.placedItems[secretSceneKey] ?? []
@@ -234,6 +235,8 @@ export default function App() {
           characters={characters}
           activeCharacterId={store.activeCharacterId}
           playerCharacterId={store.playerRole}
+          markPlayer={store.playerRole === 'visitor'}
+          handDrawnCharacterId={store.playerRole}
           speakTick={store.speakTick}
           onSelect={store.openDialogue}
           onMove={store.moveCharacter}
@@ -403,6 +406,10 @@ export default function App() {
           characters={characters}
           companionIds={store.companionIds}
           characterPositions={store.characterPositions}
+          flags={store.flags}
+          equippedItems={store.equippedItems}
+          accessoryFits={store.accessoryFits}
+          placedItems={store.placedItems}
           onRestart={() => store.startTale(tale.id, store.playerRole)}
           onMap={store.backToMap}
           onClose={() => setEndingOpen(false)}

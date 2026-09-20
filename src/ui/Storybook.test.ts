@@ -1,7 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { makeStoryPages } from './storyPages.ts'
+import { makeStoryPages, sceneItemKey } from './storyPages.ts'
 import type { StoryEntry } from '../state/types.ts'
+
+/** The key App builds while the child is playing, from live store state. */
+function keyWhilePlaying(sceneId: string, log: StoryEntry[], imagined: boolean): string {
+  return sceneItemKey(sceneId, imagined ? log.findLast((item) => item.imaginedScene)?.id ?? '' : undefined)
+}
 
 test('storybook keeps each scene with its conversation and leaves out system messages', () => {
   const log: StoryEntry[] = [
@@ -42,4 +47,20 @@ test('each child-created map gets its own illustrated page, even in the same sce
   assert.deepEqual(pages.map((page) => page.key), ['1', '2', '4'])
   assert.deepEqual(pages.map((page) => page.imaginedScene?.map.backdropId), [undefined, 'sky', 'ocean'])
   assert.match(pages[1].narration, /bird joins us/)
+})
+
+test('each page reads back the decorations that were placed on that very scene', () => {
+  const sky = { title: 'Cloud Walk', narration: 'We walk among clouds.', setting: 'Sky', map: { theme: 'sky' as const, landmark: 'none' as const, backdropId: 'sky' as const } }
+  const authored: StoryEntry[] = [{ id: '1', kind: 'narration', text: 'At the fork.', ts: 1, sceneId: 'fork' }]
+  const imagined: StoryEntry[] = [...authored, { id: '2', kind: 'narration', text: sky.narration, ts: 2, sceneId: 'fork', imaginedScene: sky }]
+
+  // What the store held while each of those two screens was on the map.
+  const placedItems: Record<string, Array<{ id: string; x: number; y: number }>> = {
+    [keyWhilePlaying('fork', authored, false)]: [{ id: 'lantern', x: 0.3, y: 0.6 }],
+    [keyWhilePlaying('fork', imagined, true)]: [{ id: 'rainbow', x: 0.7, y: 0.4 }],
+  }
+
+  const pages = makeStoryPages(imagined)
+  const perPage = pages.map((page) => placedItems[sceneItemKey('fork', page.imaginedScene ? page.key : undefined)] ?? [])
+  assert.deepEqual(perPage.map((items) => items.map((item) => item.id)), [['lantern'], ['rainbow']])
 })

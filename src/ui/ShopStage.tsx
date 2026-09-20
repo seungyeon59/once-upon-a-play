@@ -50,7 +50,7 @@ export function ShopStage({ phase, visitor, player, equippedItems, accessoryFits
       </svg>
       <button type="button" className={`shop-stage__sign shop-stage__sign--map${category === 'map' ? ' shop-stage__sign--selected' : ''}`} disabled={phase !== 'open'} onClick={() => onCategory('map')}>Map decorations</button>
       <button type="button" className={`shop-stage__sign shop-stage__sign--character${category === 'character' ? ' shop-stage__sign--selected' : ''}`} disabled={phase !== 'open'} onClick={() => onCategory('character')}>Character accessories</button>
-      {player && <div className="shop-stage__avatar" aria-label={`${player.name} standing in the store`}><PixiStage sceneKey={`shop-avatar:${player.id}`} backdrop="hearth" generatedBackdrop actions={[]} cast={cast} characters={characters} activeCharacterId={null} playerCharacterId={player.id} speakTick={0} onSelect={() => {}} onMove={() => {}} equippedItems={equippedItems} accessoryFits={accessoryFits} /></div>}
+      {player && <div className="shop-stage__avatar" aria-label={`${player.name} standing in the store`}><PixiStage sceneKey={`shop-avatar:${player.id}`} backdrop="hearth" generatedBackdrop actions={[]} cast={cast} characters={characters} activeCharacterId={null} playerCharacterId={player.id} handDrawnCharacterId={player.id} speakTick={0} onSelect={() => {}} onMove={() => {}} equippedItems={equippedItems} accessoryFits={accessoryFits} /></div>}
       {player && <span className="shop-stage__player-name">Me: {player.name}</span>}
       </div>
     </div>

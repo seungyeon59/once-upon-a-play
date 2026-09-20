@@ -3,7 +3,8 @@ import { Application, Graphics, Rectangle, Sprite, Text, Texture, type Federated
 
 import type { Character, SceneAction, ScenePlacement } from '../state/types.ts'
 import { bakeCharacter, paintParallaxBackdrop } from './placeholderArt.ts'
-import { shopItem, type AccessoryFit } from '../content/shopItems.ts'
+import { accessoryBadge } from './accessory.ts'
+import { type AccessoryFit } from '../content/shopItems.ts'
 import {
   createProceduralState,
   pokeTalk,
@@ -21,6 +22,18 @@ interface PixiStageProps {
   /** The character currently being talked to, if any. */
   activeCharacterId: string | null
   playerCharacterId: string
+  /**
+   * Badge the player's own character on the map. The Visitor avatar is a plain
+   * traveler standing next to another child, so without this the child cannot
+   * tell which sprite is theirs. Red and Gray are one of a kind already.
+   */
+  markPlayer?: boolean
+  /**
+   * The character to draw in the hand-drawn crayon style. This is the role the
+   * child picked at the start, not whoever a panel happens to be previewing, so
+   * the store preview and the map always agree.
+   */
+  handDrawnCharacterId?: string
   /** Bumped by the caller whenever a new line is spoken, to trigger the talk animation. */
   speakTick: number
   onSelect: (characterId: string) => void
@@ -35,6 +48,8 @@ interface Actor {
   state: ProceduralState
   ring?: Graphics
   accessory?: Text
+  /** The "this is you" arrow, present only on the badged player character. */
+  marker?: Graphics
   characterId: string
   suppressTap: boolean
   travel?: { fromX: number; fromY: number; toX: number; toY: number; start: number; duration: number }
@@ -73,20 +88,10 @@ export function PixiStage(props: PixiStageProps) {
   function updateAccessories(): void {
     for (const actor of actorsRef.current) {
       if (actor.accessory) { actor.sprite.removeChild(actor.accessory); actor.accessory.destroy(); actor.accessory = undefined }
-      const item = shopItem(propsRef.current.equippedItems?.[actor.characterId] ?? '')
-      if (!item || item.category !== 'character') continue
       const character = propsRef.current.characters.find((candidate) => candidate.id === actor.characterId)
-      const wolf = character?.art.silhouette === 'wolf'
-      const slot = item.slot ?? 'head'
-      const height = actor.sprite.texture.height
-      const baseX = wolf ? (slot === 'back' ? -0.17 : 0.27) : slot === 'back' ? -0.18 : 0
-      const baseY = slot === 'head' ? (wolf ? -0.84 : -0.87) : slot === 'face' ? -0.62 : slot === 'neck' ? -0.48 : -0.42
-      const fit = propsRef.current.accessoryFits?.[`${actor.characterId}:${item.id}`] ?? { x: 0, y: 0, scale: 1 }
-      const badge = new Text({ text: item.symbol, style: { fontSize: slot === 'face' ? 29 : 34, fontFamily: 'Apple Color Emoji, Segoe UI Emoji, sans-serif' } })
-      badge.anchor.set(0.5, 1)
-      badge.position.set((baseX + fit.x) * height, (baseY + fit.y) * height)
-      badge.scale.set(fit.scale)
-      badge.eventMode = 'none'
+      if (!character) continue
+      const badge = accessoryBadge(character, propsRef.current.equippedItems?.[actor.characterId], propsRef.current.accessoryFits, actor.sprite.texture.height)
+      if (!badge) continue
       actor.sprite.addChild(badge)
       actor.accessory = badge
     }
@@ -174,7 +179,12 @@ export function PixiStage(props: PixiStageProps) {
             tickProcedural(actor.sprite, actor.state, ticker.deltaTime)
             if (actor.ring) {
               actor.ring.position.set(actor.state.baseX, actor.state.baseY)
-              actor.ring.alpha = 0.16 + Math.sin(actor.state.phase * 1.6) * 0.1 + actor.state.hover * 0.3
+              // The player's ring stays solid; only the NPC halos breathe.
+              if (!actor.marker) actor.ring.alpha = 0.16 + Math.sin(actor.state.phase * 1.6) * 0.1 + actor.state.hover * 0.3
+            }
+            if (actor.marker) {
+              const above = actor.sprite.texture.height * actor.state.baseScale + 22
+              actor.marker.position.set(actor.state.baseX, actor.state.baseY - above + Math.sin(actor.state.phase * 1.8) * 3)
             }
           }
         })
@@ -237,6 +247,9 @@ export function PixiStage(props: PixiStageProps) {
 
     // Painter's algorithm: characters lower on screen stand in front.
     const ordered = [...cast].sort((a, b) => a.y - b.y)
+    // Collected and added after the cast, so a character standing further
+    // forward can never cover the player's own badge.
+    const playerMarkers: Graphics[] = []
 
     for (const placement of ordered) {
       const character = characters.find((c) => c.id === placement.characterId)
@@ -245,7 +258,7 @@ export function PixiStage(props: PixiStageProps) {
       let texture = texturesRef.current.get(character.id)
       if (!texture) {
         if (character.imageDataUrl) continue // Loaded asynchronously below.
-        texture = bakeCharacter(app.renderer, character.art)
+        texture = bakeCharacter(app.renderer, character.art, character.id === propsRef.current.handDrawnCharacterId)
         texturesRef.current.set(character.id, texture)
       }
 
@@ -256,12 +269,22 @@ export function PixiStage(props: PixiStageProps) {
       const scale = placement.scale * Math.min(width / 1100, height / 720) *
         (character.imageDataUrl ? character.art.height / texture.height : 1)
       const interactive = character.id !== propsRef.current.playerCharacterId
+      const marksPlayer = !interactive && Boolean(propsRef.current.markPlayer)
+
+      const radiusX = character.art.height * scale * 0.34
+      const radiusY = character.art.height * scale * 0.1
 
       let ring: Graphics | undefined
-      if (interactive) {
+      if (interactive || marksPlayer) {
         ring = new Graphics()
-        ring.ellipse(0, 0, character.art.height * scale * 0.34, character.art.height * scale * 0.1)
-        ring.fill(0xf5e6b8)
+        if (marksPlayer) {
+          // A solid double ring, deliberately unlike the NPCs' faint "tap me" halo.
+          ring.ellipse(0, 0, radiusX * 1.22, radiusY * 1.22).fill(0x315a46)
+          ring.ellipse(0, 0, radiusX * 0.92, radiusY * 0.92).fill(0xf5e6b8)
+          ring.alpha = 0.9
+        } else {
+          ring.ellipse(0, 0, radiusX, radiusY).fill(0xf5e6b8)
+        }
         ring.position.set(x, y)
         app.stage.addChild(ring)
       }
@@ -271,8 +294,17 @@ export function PixiStage(props: PixiStageProps) {
       sprite.position.set(x, y)
       app.stage.addChild(sprite)
 
+      let marker: Graphics | undefined
+      if (marksPlayer) {
+        marker = new Graphics()
+        marker.poly([0, 12, -11, -7, 11, -7]).fill(0x315a46)
+        marker.poly([0, 5, -5.5, -3.5, 5.5, -3.5]).fill(0xfff4d5)
+        marker.eventMode = 'none'
+        playerMarkers.push(marker)
+      }
+
       const state = createProceduralState(scale, x, y, placement.facing)
-      const actor: Actor = { sprite, state, ring, characterId: character.id, suppressTap: false }
+      const actor: Actor = { sprite, state, ring, marker, characterId: character.id, suppressTap: false }
 
       sprite.eventMode = 'static'
       sprite.cursor = 'grab'
@@ -303,6 +335,7 @@ export function PixiStage(props: PixiStageProps) {
 
       actorsRef.current.push(actor)
     }
+    for (const marker of playerMarkers) app.stage.addChild(marker)
     if (layers) app.stage.addChild(layers.front)
     updateAccessories()
   }
@@ -397,7 +430,7 @@ export function PixiStage(props: PixiStageProps) {
       playActions(250)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.sceneKey, props.backdrop, props.generatedBackdrop, props.cast, props.characters])
+  }, [props.sceneKey, props.backdrop, props.generatedBackdrop, props.cast, props.characters, props.markPlayer])
 
   useEffect(() => { updateAccessories() }, [props.equippedItems, props.accessoryFits]) // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -303,22 +303,143 @@ function paintHearth(g: Graphics, w: number, h: number): void {
 /* ------------------------------------------------------------ characters --- */
 
 /**
+ * Characters are drawn the way a nine-year-old draws: the outline goes round
+ * twice and never lands on itself, and the colour sits a little off the line.
+ *
+ * This is what puts our cast in the same world as the crayon drawing a child
+ * scans in — before, a scanned companion was the only hand-made thing on a map
+ * of clean vector shapes.
+ */
+interface CrayonHand {
+  /** How far a line may wander, in pixels, scaled to the character. */
+  amount: number
+  /** Outline width. */
+  width: number
+  jitter: (amount: number) => number
+}
+
+/**
+ * Seeded from the character's own palette, so one character is drawn the same
+ * way every time it is baked. The map and the printed book must not disagree,
+ * and neither may two renders across a window resize.
+ */
+function hand(art: CharacterArt, h: number): CrayonHand {
+  const random = rng((art.body * 31 + art.accent * 17 + art.skin * 7 + h) >>> 0)
+  return {
+    amount: h * 0.011,
+    width: Math.max(1.6, h * 0.015),
+    jitter: (amount: number) => (random() - 0.5) * 2 * amount,
+  }
+}
+
+/** A closed path around an ellipse, so the crayon helpers can rough it up. */
+function ellipsePath(cx: number, cy: number, rx: number, ry: number, sides = 16): number[] {
+  const points: number[] = []
+  for (let i = 0; i < sides; i += 1) {
+    const angle = (i / sides) * Math.PI * 2
+    points.push(cx + Math.cos(angle) * rx, cy + Math.sin(angle) * ry)
+  }
+  return points
+}
+
+/** A closed path around a rectangle. */
+function rectPath(x: number, y: number, width: number, height: number): number[] {
+  return [x, y, x + width, y, x + width, y + height, x, y + height]
+}
+
+/** Bows every edge and nudges every corner, so no two passes come out alike. */
+function roughen(points: number[], jitter: CrayonHand['jitter'], amount: number, dx = 0, dy = 0): number[] {
+  const out: number[] = []
+  const corners = points.length / 2
+  for (let corner = 0; corner < corners; corner += 1) {
+    const x0 = points[corner * 2]
+    const y0 = points[corner * 2 + 1]
+    const x1 = points[((corner + 1) % corners) * 2]
+    const y1 = points[((corner + 1) % corners) * 2 + 1]
+    for (let step = 0; step < 3; step += 1) {
+      const t = step / 3
+      out.push(x0 + (x1 - x0) * t + dx + jitter(amount), y0 + (y1 - y0) * t + dy + jitter(amount))
+    }
+  }
+  return out
+}
+
+/** Colour laid down off the line, then the outline gone over twice. */
+function crayon(g: Graphics, points: number[], color: number, pen: CrayonHand): void {
+  const { amount, jitter, width } = pen
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+  for (let i = 0; i < points.length; i += 2) {
+    minX = Math.min(minX, points[i]); maxX = Math.max(maxX, points[i])
+    minY = Math.min(minY, points[i + 1]); maxY = Math.max(maxY, points[i + 1])
+  }
+  // A strip narrower than the outline would come out as a bar of solid ink.
+  const thin = Math.min(maxX - minX, maxY - minY) < width * 3
+  g.poly(roughen(points, jitter, thin ? amount * 0.5 : amount, jitter(amount), jitter(amount))).fill(color)
+  if (thin) return
+  const ink = lerpColor(color, 0x2b2119, 0.52)
+  g.poly(roughen(points, jitter, amount * 1.2)).stroke({ width, color: ink, alpha: 0.9, join: 'round', cap: 'round' })
+  g.poly(roughen(points, jitter, amount * 1.5)).stroke({ width: width * 0.65, color: ink, alpha: 0.45, join: 'round', cap: 'round' })
+}
+
+/**
+ * How one character gets drawn. Every silhouette is written once against this,
+ * so the child's own character and the rest of the cast can never drift apart
+ * in anatomy — only in style.
+ */
+interface Pen {
+  ellipse(cx: number, cy: number, rx: number, ry: number, color: number): void
+  rect(x: number, y: number, width: number, height: number, radius: number, color: number): void
+  poly(points: number[], color: number): void
+  shadow(cx: number, cy: number, rx: number, ry: number): void
+  /** Eyes and noses. Too small to be worth roughing up in either style. */
+  dot(cx: number, cy: number, r: number, color: number): void
+}
+
+/** Clean vector shapes: everyone the child is not playing. */
+function flatPen(g: Graphics): Pen {
+  return {
+    ellipse: (cx, cy, rx, ry, color) => { g.ellipse(cx, cy, rx, ry).fill(color) },
+    rect: (x, y, width, height, radius, color) => { g.roundRect(x, y, width, height, radius).fill(color) },
+    poly: (points, color) => { g.poly(points).fill(color) },
+    shadow: (cx, cy, rx, ry) => { g.ellipse(cx, cy, rx, ry).fill({ color: 0x000000, alpha: 0.18 }) },
+    dot: (cx, cy, r, color) => { g.circle(cx, cy, r).fill(color) },
+  }
+}
+
+/** Drawn by hand: the one character the child chose to be. */
+function crayonPen(g: Graphics, art: CharacterArt, h: number): Pen {
+  const pen = hand(art, h)
+  return {
+    ellipse: (cx, cy, rx, ry, color) => crayon(g, ellipsePath(cx, cy, rx, ry), color, pen),
+    rect: (x, y, width, height, _radius, color) => crayon(g, rectPath(x, y, width, height), color, pen),
+    poly: (points, color) => crayon(g, points, color, pen),
+    // Shading, not a drawn line, so it keeps its soft edge.
+    shadow: (cx, cy, rx, ry) => { g.poly(roughen(ellipsePath(cx, cy, rx, ry), pen.jitter, pen.amount * 0.7)).fill({ color: 0x000000, alpha: 0.18 }) },
+    dot: (cx, cy, r, color) => { g.circle(cx, cy, r).fill(color) },
+  }
+}
+
+/**
  * Paints a character and bakes it into a texture. The result is one flat
  * sprite with no separated limbs — animation is procedural only, by design.
+ *
+ * `handDrawn` picks the crayon style, reserved for the character the child
+ * chose to play as, so their own avatar reads as theirs at a glance.
  */
-export function bakeCharacter(renderer: Renderer, art: CharacterArt): Texture {
+export function bakeCharacter(renderer: Renderer, art: CharacterArt, handDrawn = false): Texture {
   const g = new Graphics()
   const h = art.height
+  const pen = handDrawn ? crayonPen(g, art, h) : flatPen(g)
 
   switch (art.silhouette) {
     case 'child':
-      paintChild(g, art, h)
+      paintChild(pen, art, h)
       break
     case 'wolf':
-      paintWolf(g, art, h)
+      paintWolf(pen, art, h)
       break
     case 'elder':
-      paintElder(g, art, h)
+      paintElder(pen, art, h)
       break
   }
 
@@ -328,59 +449,59 @@ export function bakeCharacter(renderer: Renderer, art: CharacterArt): Texture {
 }
 
 /** All characters are drawn with their feet at y = 0 and their head at -height. */
-function paintChild(g: Graphics, art: CharacterArt, h: number): void {
+function paintChild(pen: Pen, art: CharacterArt, h: number): void {
   const w = h * 0.46
-  g.ellipse(0, -2, w * 0.5, 6).fill({ color: 0x000000, alpha: 0.18 })
-  for (const side of [-1, 1]) g.roundRect(side * w * 0.16 - 5, -h * 0.2, 10, h * 0.2, 4).fill(0x4a3b2e)
+  pen.shadow(0, -2, w * 0.5, 6)
+  for (const side of [-1, 1]) pen.rect(side * w * 0.16 - 5, -h * 0.2, 10, h * 0.2, 4, 0x4a3b2e)
   // Cloak: a flared trapezoid, wider at the hem.
-  g.poly([-w * 0.42, 0, w * 0.42, 0, w * 0.3, -h * 0.58, -w * 0.3, -h * 0.58]).fill(art.body)
-  g.circle(0, -h * 0.66, w * 0.3).fill(art.skin)
+  pen.poly([-w * 0.42, 0, w * 0.42, 0, w * 0.3, -h * 0.58, -w * 0.3, -h * 0.58], art.body)
+  pen.ellipse(0, -h * 0.66, w * 0.3, w * 0.3, art.skin)
   // Hood sits over the back of the head.
-  g.circle(0, -h * 0.7, w * 0.36).fill(art.body)
-  g.circle(w * 0.08, -h * 0.66, w * 0.27).fill(art.skin)
-  g.circle(w * 0.16, -h * 0.68, 3).fill(0x2b2119)
-  g.roundRect(w * 0.26, -h * 0.34, w * 0.34, h * 0.16, 5).fill(art.accent)
-  g.rect(w * 0.26, -h * 0.34, w * 0.34, 5).fill(0x8a6a44)
+  pen.ellipse(0, -h * 0.7, w * 0.36, w * 0.36, art.body)
+  pen.ellipse(w * 0.08, -h * 0.66, w * 0.27, w * 0.27, art.skin)
+  pen.dot(w * 0.16, -h * 0.68, 3, 0x2b2119)
+  pen.rect(w * 0.26, -h * 0.34, w * 0.34, h * 0.16, 5, art.accent)
+  pen.rect(w * 0.26, -h * 0.34, w * 0.34, 5, 0, 0x8a6a44)
 }
 
-function paintWolf(g: Graphics, art: CharacterArt, h: number): void {
+function paintWolf(pen: Pen, art: CharacterArt, h: number): void {
   const w = h * 0.86
-  g.ellipse(0, -2, w * 0.44, 7).fill({ color: 0x000000, alpha: 0.18 })
+  pen.shadow(0, -2, w * 0.44, 7)
   for (const x of [-w * 0.26, -w * 0.12, w * 0.12, w * 0.24]) {
-    g.roundRect(x - 5, -h * 0.3, 10, h * 0.3, 4).fill(art.accent)
+    pen.rect(x - 5, -h * 0.3, 10, h * 0.3, 4, art.accent)
   }
-  g.ellipse(0, -h * 0.44, w * 0.38, h * 0.17).fill(art.body)
+  pen.ellipse(0, -h * 0.44, w * 0.38, h * 0.17, art.body)
   // Tail sweeping back and up.
-  g.poly([-w * 0.34, -h * 0.46, -w * 0.62, -h * 0.66, -w * 0.5, -h * 0.4]).fill(art.body)
-  g.circle(w * 0.32, -h * 0.66, h * 0.15).fill(art.body)
+  pen.poly([-w * 0.34, -h * 0.46, -w * 0.62, -h * 0.66, -w * 0.5, -h * 0.4], art.body)
+  pen.ellipse(w * 0.32, -h * 0.66, h * 0.15, h * 0.15, art.body)
   for (const side of [-1, 1]) {
-    g.poly([
+    pen.poly([
       w * (0.26 + side * 0.05), -h * 0.76,
       w * (0.3 + side * 0.07), -h * 0.95,
       w * (0.38 + side * 0.05), -h * 0.74,
-    ]).fill(art.accent)
+    ], art.accent)
   }
   // Muzzle.
-  g.ellipse(w * 0.47, -h * 0.62, h * 0.11, h * 0.07).fill(art.skin)
-  g.circle(w * 0.56, -h * 0.63, 4).fill(0x241f1c)
-  g.circle(w * 0.36, -h * 0.7, 3.5).fill(0xf0e4c8)
+  pen.ellipse(w * 0.47, -h * 0.62, h * 0.11, h * 0.07, art.skin)
+  pen.dot(w * 0.56, -h * 0.63, 4, 0x241f1c)
+  pen.dot(w * 0.36, -h * 0.7, 3.5, 0xf0e4c8)
 }
 
-function paintElder(g: Graphics, art: CharacterArt, h: number): void {
+function paintElder(pen: Pen, art: CharacterArt, h: number): void {
   const w = h * 0.5
   // The shawl is a deeper tint of the skirt; the hair keeps the pale accent, so
   // head and shoulders stay readable as two shapes rather than one blob.
   const shawl = lerpColor(art.body, 0x000000, 0.25)
-  g.ellipse(0, -2, w * 0.5, 6).fill({ color: 0x000000, alpha: 0.18 })
-  g.poly([-w * 0.46, 0, w * 0.46, 0, w * 0.26, -h * 0.5, -w * 0.26, -h * 0.5]).fill(art.body)
-  g.poly([-w * 0.36, -h * 0.42, w * 0.36, -h * 0.42, w * 0.2, -h * 0.68, -w * 0.2, -h * 0.68]).fill(shawl)
-  g.circle(0, -h * 0.76, w * 0.27).fill(art.skin)
+  pen.shadow(0, -2, w * 0.5, 6)
+  pen.poly([-w * 0.46, 0, w * 0.46, 0, w * 0.26, -h * 0.5, -w * 0.26, -h * 0.5], art.body)
+  pen.poly([-w * 0.36, -h * 0.42, w * 0.36, -h * 0.42, w * 0.2, -h * 0.68, -w * 0.2, -h * 0.68], shawl)
+  pen.ellipse(0, -h * 0.76, w * 0.27, w * 0.27, art.skin)
   // Hair sits behind and above the face.
-  g.circle(-w * 0.14, -h * 0.86, w * 0.19).fill(art.accent)
-  g.circle(0, -h * 0.84, w * 0.26).fill(art.accent)
-  g.circle(w * 0.04, -h * 0.76, w * 0.24).fill(art.skin)
-  g.circle(w * 0.14, -h * 0.78, 3).fill(0x2b2119)
-  g.roundRect(w * 0.22, -h * 0.46, w * 0.26, h * 0.09, 5).fill(0x8a6a44)
+  pen.ellipse(-w * 0.14, -h * 0.86, w * 0.19, w * 0.19, art.accent)
+  pen.ellipse(0, -h * 0.84, w * 0.26, w * 0.26, art.accent)
+  pen.ellipse(w * 0.04, -h * 0.76, w * 0.24, w * 0.24, art.skin)
+  pen.dot(w * 0.14, -h * 0.78, 3, 0x2b2119)
+  pen.rect(w * 0.22, -h * 0.46, w * 0.26, h * 0.09, 5, 0x8a6a44)
 }
 
 /** Convenience: a baked character as a feet-anchored sprite. */

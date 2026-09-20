@@ -3,7 +3,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { getScene, getTale } from '../content/tales/redRidingHood.ts'
 import { getRoleView } from '../content/tales/roleViews.ts'
 import { paintParallaxBackdrop, bakeCharacter } from '../pixi/placeholderArt.ts'
-import type { Character, ImaginedScene, PlayerRole, ScenePlacement } from '../state/types.ts'
+import { accessoryBadge, decorationBadge } from '../pixi/accessory.ts'
+import type { AccessoryFit } from '../content/shopItems.ts'
+import type { Character, Flags, ImaginedScene, PlayerRole, ScenePlacement } from '../state/types.ts'
 import { BackdropArt } from './PrebuiltMap.tsx'
 import { PropArt } from './PropArt.tsx'
 import { GeneratedMap } from './GeneratedMap.tsx'
@@ -36,8 +38,20 @@ async function imageTexture(dataUrl: string): Promise<Texture> {
   return Texture.from(image)
 }
 
+/**
+ * What the child bought and arranged, so the printed page matches the map they
+ * played on rather than a bare version of it.
+ */
+export interface StoryArtExtras {
+  /** Picks the same scene variant the child saw, instead of the default one. */
+  flags?: Flags
+  equippedItems?: Record<string, string>
+  accessoryFits?: Record<string, AccessoryFit>
+  decorations?: Array<{ id: string; x: number; y: number; size?: number }>
+}
+
 /** Renders the same scene art used by the map into a printable image. */
-export async function renderStoryArt(taleId: string, sceneId: string, role: PlayerRole, characters: Character[], companionIds: string[], positions: Record<string, { x: number; y: number }> = {}, imaginedScene?: ImaginedScene): Promise<string> {
+export async function renderStoryArt(taleId: string, sceneId: string, role: PlayerRole, characters: Character[], companionIds: string[], positions: Record<string, { x: number; y: number }> = {}, imaginedScene?: ImaginedScene, extras: StoryArtExtras = {}): Promise<string> {
   const tale = getTale(taleId)
   const scene = tale && getScene(tale, sceneId)
   if (!scene) throw new Error('Story scene not found')
@@ -47,7 +61,7 @@ export async function renderStoryArt(taleId: string, sceneId: string, role: Play
   await app.init({ width, height, background: 0xfffaf0, antialias: true, preference: 'webgl', preserveDrawingBuffer: true })
   const ownedTextures: Texture[] = []
   try {
-    const view = getRoleView(scene, {}, role)
+    const view = getRoleView(scene, extras.flags ?? {}, role)
     const layers = imaginedScene ? null : paintParallaxBackdrop(scene.backdrop, width, height)
     if (layers) app.stage.addChild(layers.base, layers.middle)
     else {
@@ -74,16 +88,26 @@ export async function renderStoryArt(taleId: string, sceneId: string, role: Play
       const placement = original
       const character = characters.find((item) => item.id === placement.characterId)
       if (!character) continue
-      const texture = character.imageDataUrl ? await imageTexture(character.imageDataUrl) : bakeCharacter(app.renderer, character.art)
+      const texture = character.imageDataUrl ? await imageTexture(character.imageDataUrl) : bakeCharacter(app.renderer, character.art, character.id === role)
       if (!character.imageDataUrl) ownedTextures.push(texture)
       const sprite = new Sprite(texture)
       sprite.anchor.set(0.5, 1)
       sprite.position.set(width * placement.x, height * placement.y)
       const scale = placement.scale * Math.min(width / 1100, height / 720) * (character.imageDataUrl ? character.art.height / texture.height : 1)
       sprite.scale.set(scale * placement.facing, scale)
+      const badge = accessoryBadge(character, extras.equippedItems?.[character.id], extras.accessoryFits, texture.height)
+      if (badge) sprite.addChild(badge)
       app.stage.addChild(sprite)
     }
     if (layers) app.stage.addChild(layers.front)
+    // Bought decorations sit in front of everything, exactly as the
+    // `.placed-decorations` layer does over the live stage.
+    for (const placement of extras.decorations ?? []) {
+      const decoration = decorationBadge(placement.id, placement.size, Math.min(width / 1100, height / 720))
+      if (!decoration) continue
+      decoration.position.set(width * placement.x, height * placement.y)
+      app.stage.addChild(decoration)
+    }
     app.render()
     // Backdrop shapes deliberately extend beyond the viewport. Extracting the
     // stage's bounds includes those offscreen shapes and creates white strips
