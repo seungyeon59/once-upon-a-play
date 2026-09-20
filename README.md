@@ -9,9 +9,8 @@ finished, the child can read and save an illustrated storybook as a PDF.
 
 ## Try the story
 
-The first playable tale is **The Path Through the Grey Wood**, an original
-retelling inspired by Little Red Riding Hood. Play as Red, Gray the wolf, or a
-visitor. Talk to the cast, choose a path, and reach one of three endings.
+The first playable tale is **Little Red Riding Hood**, an original retelling.
+Play as Red, Gray the wolf, or a visitor. Talk to the cast, choose a path, and reach one of three endings.
 
 Features:
 

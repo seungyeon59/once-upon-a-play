@@ -5,7 +5,7 @@
 ## 현재 서비스
 
 - 프로덕션: <https://once-upon-a-play.vercel.app>
-- 플레이 가능한 동화: **The Path Through the Grey Wood**
+- 플레이 가능한 동화: **Little Red Riding Hood**
 - 역할: **Red**, **Gray the wolf**, **Visitor**
 - 기술: React 19, TypeScript, Vite, Zustand, PixiJS, Express 5, Anthropic Claude, ElevenLabs
 - 서버와 테스트는 Node 24의 TypeScript 직접 실행을 사용해 별도 트랜스파일 단계가 없습니다(`node server/index.ts`, `node --test`). 클라이언트만 Vite로 빌드합니다

@@ -37,7 +37,7 @@ We learned early that kids build stories best when they can *explore a scene*, n
 
 ### What it does
 
-You pick a fairy tale and a role. The first playable tale, **The Path Through the Grey Wood**, is an original retelling of Little Red Riding Hood, and you can play it as **Red**, as **Gray the wolf**, or as a **Visitor** who wandered in. Same forest, three different stories — the wolf's version of the walk to grandmother's house is not Red's version.
+You pick a fairy tale and a role. The first playable tale, **Little Red Riding Hood**, is an original retelling, and you can play it as **Red**, as **Gray the wolf**, or as a **Visitor** who wandered in. Same forest, three different stories — the wolf's version of the walk to grandmother's house is not Red's version.
 
 Then you play:
 
@@ -98,7 +98,7 @@ We also learned that state persistence is a game design feature, not plumbing. T
 
 ### What's next for Once upon a Play
 
-- **More tales.** The tale format is data (`src/content/tales/`) and the engine isn't tied to Grey Wood. Next up: more fairy tales, each with its own roles and endings.
+- **More tales.** The tale format is data (`src/content/tales/`) and the engine isn't tied to this one tale. Next up: more fairy tales, each with its own roles and endings.
 - **Accounts and cloud saves,** so a story survives a cleared browser and moves between a tablet and a laptop.
 - **Voice in, not just voice out** — let a kid talk to the wolf instead of typing to it.
 - **A parent dashboard** showing what their child wrote and chose, with the safety log.
@@ -121,7 +121,7 @@ anthropic-claude, elevenlabs, vercel, html5-canvas, svg, localstorage, esbuild
 
 Paste this into the submission notes or say it at the demo table — it hits every system fast.
 
-1. Pick **The Path Through the Grey Wood** → play as **Gray the wolf** (shows that the role changes the story).
+1. Pick **Little Red Riding Hood** → play as **Gray the wolf** (shows that the role changes the story).
 2. Click **Nana Wren**, say something — a live Claude reply lands in a speech bubble.
 3. Make a **choice** — point out it sets a flag that changes the ending.
 4. Open **What happens next?** and type *"a hackathon appears in the forest"* — a new scene generates from the allow-listed assets, +3 coins.

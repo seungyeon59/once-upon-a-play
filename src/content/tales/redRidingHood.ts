@@ -402,7 +402,7 @@ const endingCloseCall: Scene = {
 
 export const RED_RIDING_HOOD: Tale = {
   id: 'red-riding-hood',
-  title: 'The Path Through the Grey Wood',
+  title: 'Little Red Riding Hood',
   tagline: 'A basket, a long walk, and a wolf who only ever wanted to be asked.',
   backdrop: 'forest-path',
   startSceneId: 'forest-path',
