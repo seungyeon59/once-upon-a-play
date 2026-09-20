@@ -45,17 +45,36 @@ function CrayonRainbow() {
   )
 }
 
-/**
- * Phase 1 ships one map. The locked slots are there so the shape of the screen
- * does not change when Phase 2 adds more.
- */
+/** A small hand-drawn apple, marking the Snow White card. */
+function AppleMark() {
+  return (
+    <svg className="map-card__mark" viewBox="0 0 40 40" aria-hidden="true">
+      <path d="M20 14q-2-6-8-5" fill="none" stroke="#4c7a3f" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M20 15c-8-6-17 1-15 11 1.5 7 8 11 15 8 7 3 13.5-1 15-8 2-10-7-17-15-11Z" fill="#d8432e" stroke="#8a2a1c" strokeWidth="1.5" />
+      <ellipse cx="15" cy="21" rx="3" ry="4.5" fill="#f2b3a6" opacity="0.6" />
+    </svg>
+  )
+}
+
+/** A small hand-drawn glass slipper, marking the Cinderella card. */
+function SlipperMark() {
+  return (
+    <svg className="map-card__mark" viewBox="0 0 40 40" aria-hidden="true">
+      <path d="M6 27c0-7 6-14 15-14 7 0 12 4 13 9 0.5 2.5-1 5-4 5H10c-2.5 0-4-1.6-4-4Z" fill="#cfe6ef" stroke="#5b8ca0" strokeWidth="1.5" opacity="0.9" />
+      <path d="M12 20c2-3 6-5 10-4" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" opacity="0.8" />
+      <circle cx="9.5" cy="24" r="1.4" fill="#fff" opacity="0.9" />
+    </svg>
+  )
+}
+
+const TALE_MARKS: Record<string, typeof AppleMark> = {
+  'snow-white': AppleMark,
+  cinderella: SlipperMark,
+}
+
 export function MapSelect({ tales, hasSave, onStart, onResume }: MapSelectProps) {
   const [selectedTale, setSelectedTale] = useState<string | null>(null)
-  const roles: { id: PlayerRole; title: string; description: string }[] = [
-    { id: 'red', title: 'Be Red', description: 'Carry the basket and lead the story.' },
-    { id: 'wolf', title: 'Be Gray the wolf', description: 'See the forest from Gray’s point of view.' },
-    { id: 'visitor', title: 'Be a visitor', description: 'Meet and talk to both Red and Gray.' },
-  ]
+  const roles = tales.find((tale) => tale.id === selectedTale)?.roles ?? []
   return (
     <main className="maps">
       <header className="maps__head">
@@ -73,32 +92,27 @@ export function MapSelect({ tales, hasSave, onStart, onResume }: MapSelectProps)
       </header>
 
       <div className="maps__grid">
-        {tales.map((tale, index) => (
-          <button
-            key={tale.id}
-            type="button"
-            className={`map-card${selectedTale === tale.id ? ' map-card--picked' : ''}`}
-            style={{ '--crayon': CRAYONS[index % CRAYONS.length] } as CSSProperties}
-            onClick={() => setSelectedTale(tale.id)}
-            aria-pressed={selectedTale === tale.id}
-          >
-            <span className={`map-card__art map-card__art--${tale.backdrop}`} aria-hidden="true" />
-            <span className="map-card__body">
-              <strong>{tale.title}</strong>
-              <span>{tale.tagline}</span>
-            </span>
-          </button>
-        ))}
-
-        {['Snow White', 'Cinderella'].map((name) => (
-          <div key={name} className="map-card map-card--locked">
-            <span className="map-card__art map-card__art--locked" aria-hidden="true" />
-            <span className="map-card__body">
-              <strong>{name}</strong>
-              <span>Coming soon</span>
-            </span>
-          </div>
-        ))}
+        {tales.map((tale, index) => {
+          const Mark = TALE_MARKS[tale.id]
+          return (
+            <button
+              key={tale.id}
+              type="button"
+              className={`map-card${selectedTale === tale.id ? ' map-card--picked' : ''}`}
+              style={{ '--crayon': CRAYONS[index % CRAYONS.length] } as CSSProperties}
+              onClick={() => setSelectedTale(tale.id)}
+              aria-pressed={selectedTale === tale.id}
+            >
+              <span className={`map-card__art map-card__art--${tale.backdrop}`} aria-hidden="true">
+                {Mark && <Mark />}
+              </span>
+              <span className="map-card__body">
+                <strong>{tale.title}</strong>
+                <span>{tale.tagline}</span>
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {selectedTale && (

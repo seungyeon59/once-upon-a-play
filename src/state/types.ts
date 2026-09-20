@@ -5,7 +5,8 @@
 
 export type SceneId = string
 export type CharacterId = string
-export type PlayerRole = 'red' | 'wolf' | 'visitor'
+/** A tale's protagonist id, one of its supporting characters' ids, or 'visitor'. Each tale declares its own set via `Tale.roles`. */
+export type PlayerRole = string
 export type FlagValue = string | boolean
 export type Flags = Record<string, FlagValue>
 
@@ -25,7 +26,10 @@ export interface CharacterArt {
   height: number
 }
 
-export type BackdropKind = 'forest-path' | 'fork' | 'cottage' | 'hearth'
+export type BackdropKind =
+  | 'forest-path' | 'fork' | 'cottage' | 'hearth'
+  | 'castle-courtyard' | 'castle-garden' | 'castle-kitchen' | 'castle-hall'
+  | 'castle-scullery' | 'castle-corridor' | 'castle-terrace' | 'ballroom'
 
 /* ------------------------------------------------------------ character --- */
 
@@ -113,6 +117,12 @@ export interface Scene {
   ending?: { title: string; blurb: string }
 }
 
+export interface TaleRole {
+  id: PlayerRole
+  title: string
+  description: string
+}
+
 export interface Tale {
   id: string
   title: string
@@ -121,6 +131,8 @@ export interface Tale {
   startSceneId: SceneId
   scenes: Scene[]
   characters: Character[]
+  /** Who the child can play as, offered in this order after a map is picked. */
+  roles: TaleRole[]
 }
 
 /* ------------------------------------------------------------------ log --- */
@@ -148,6 +160,7 @@ export interface ChatTurn {
 }
 
 export interface ChatRequest {
+  taleId: string
   characterId: CharacterId
   playerRole: PlayerRole
   companionId?: CharacterId | null

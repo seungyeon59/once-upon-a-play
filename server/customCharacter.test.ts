@@ -5,6 +5,7 @@ import { buildContextBlock } from './persona.ts'
 import type { ChatRequest } from '../src/state/types.ts'
 
 const request: ChatRequest = {
+  taleId: 'red-riding-hood',
   characterId: 'custom-1234567890',
   playerRole: 'red',
   customCharacter: { id: 'custom-1234567890', name: 'Sunny', personality: 'curious and gentle' },

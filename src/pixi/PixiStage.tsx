@@ -395,7 +395,7 @@ export function PixiStage(props: PixiStageProps) {
       const width = app.screen.width
       const height = app.screen.height
       const now = performance.now()
-      const forest = props.backdrop === 'forest-path' || props.backdrop === 'fork'
+      const forest = ['forest-path', 'fork', 'castle-courtyard', 'castle-garden', 'castle-scullery', 'castle-corridor'].includes(props.backdrop)
       actorsRef.current.forEach((actor, index) => {
         const x = forest ? width * (0.56 + index * 0.06) : width * 1.08
         const y = forest ? height * 0.64 : actor.state.baseY

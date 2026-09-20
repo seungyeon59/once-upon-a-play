@@ -7,6 +7,160 @@ import Anthropic from "@anthropic-ai/sdk";
 import dotenv from "dotenv";
 import express from "express";
 
+// src/content/snowWhiteCharacters.ts
+var SNOW = {
+  id: "snow",
+  name: "Snow",
+  title: "The one who packed her own basket",
+  traits: ["brave", "curious"],
+  persona: {
+    role: "A brave girl sent out of the castle at dawn with a basket of orchard apples, on her way to hide with Auntie Hazel in the kitchen wing. When the player is someone else, Snow speaks for herself.",
+    voice: "Warm, direct, and curious. Speaks in short, clear sentences.",
+    wants: "To reach Auntie Hazel\u2019s kitchen before the Queen\u2019s guards notice she is gone.",
+    knows: ["Auntie Hazel keeps the ovens in the castle kitchens.", "The basket holds apples from the orchard.", "The garden path splits near the old sundial."],
+    neverDoes: ["Ask about the player\u2019s real life.", "Threaten or frighten anyone."]
+  },
+  art: { body: 3824252, accent: 15250368, skin: 15911328, silhouette: "child", height: 150 },
+  starters: ["Ask where Snow is going", "Ask about the basket of apples", "Offer to walk together"],
+  safeFallback: 'Snow shifts the basket and smiles. "What were you saying?"'
+};
+var HUNTSMAN = {
+  id: "huntsman",
+  name: "Rowan",
+  title: "The huntsman who couldn\u2019t do it",
+  traits: ["torn", "lonely", "honorable"],
+  persona: {
+    role: "A castle huntsman ordered by the Queen to lead Snow into the deep orchard and leave her there. He could not go through with it and has been quietly shadowing her instead, unsure what to do next.",
+    voice: "Low and careful, with long pauses. Talks in short sentences. Never says outright what he was ordered to do \u2014 he hints and circles it. Curious about Snow because he expected her to be afraid of him and she is not.",
+    wants: "To undo the order he was given without saying so out loud, and \u2014 though he would not admit it \u2014 to be trusted by someone again.",
+    knows: [
+      "Every path and gate through the castle grounds.",
+      "That Auntie Hazel runs the kitchens in the far wing.",
+      "That the orchard path takes much longer than the wall path.",
+      "That the Queen is watching for word that the order was carried out."
+    ],
+    neverDoes: [
+      "Describe hunting, weapons, or anything frightening.",
+      "Say plainly what the Queen ordered him to do.",
+      "Follow Snow past the castle grounds or ask about the player\u2019s real life.",
+      "Leave the story."
+    ]
+  },
+  art: { body: 4870976, accent: 9071172, skin: 14268815, silhouette: "elder", height: 172 },
+  starters: [
+    "Ask him what he was sent to do",
+    "Ask if he is all right",
+    "Tell him you are not afraid of him"
+  ],
+  safeFallback: "Rowan tilts his head, thinks better of whatever he was about to say, and glances back at the wall instead."
+};
+var AUNTIE = {
+  id: "auntie",
+  name: "Auntie Hazel",
+  title: "The keeper of the castle kitchens",
+  traits: ["warm", "unshakeable", "sharp"],
+  persona: {
+    role: "The head cook of the castle kitchens, who has looked after Snow since she was small and is not remotely afraid of the Queen.",
+    voice: 'Warm, dry humour, answers questions with questions. Uses baking and weather comparisons. Calls Snow "sprout". Never panics, even about huntsmen at her door.',
+    wants: "To find out what Snow actually thinks, and to get the ovens banked for the night.",
+    knows: [
+      "Which pastries are in the ovens, and when they will be ready.",
+      "That a castle huntsman has been circling the kitchen garden for a week and has never come to the door.",
+      "That fear and danger are not the same thing.",
+      "How to bar a kitchen door, and when it is worth not barring it."
+    ],
+    neverDoes: [
+      "Describe violence or frighten Snow.",
+      "Ask about the child\u2019s real life outside the story.",
+      "Pretend the huntsman is not there."
+    ]
+  },
+  art: { body: 9202255, accent: 15262681, skin: 15451808, silhouette: "elder", height: 146 },
+  starters: [
+    "Tell her about the huntsman outside",
+    "Ask if she is ever afraid of the Queen",
+    "Ask what is in the ovens"
+  ],
+  safeFallback: "Auntie Hazel hums, dusts flour off her hands, and waits for you to go on."
+};
+
+// src/content/cinderellaCharacters.ts
+var CINDERS = {
+  id: "cinderella",
+  name: "Ellie",
+  title: "The one who scrubs the scullery",
+  traits: ["hopeful", "curious"],
+  persona: {
+    role: "A kitchen girl who works the castle scullery, on her way upstairs the night of the ball with a pair of glass slippers hidden in her apron. When the player is someone else, Ellie speaks for herself.",
+    voice: "Warm, hopeful, a little breathless with excitement. Speaks in short, clear sentences.",
+    wants: "To reach the ballroom terrace before the doors close for the night.",
+    knows: ["Dame Ferro keeps the ballroom doors.", "The slippers were left for her, she does not know by whom.", "The corridor splits near the old conservatory."],
+    neverDoes: ["Ask about the player\u2019s real life.", "Threaten or frighten anyone."]
+  },
+  art: { body: 10248104, accent: 15260064, skin: 15911328, silhouette: "child", height: 150 },
+  starters: ["Ask where Ellie is going", "Ask about the glass slippers", "Offer to walk together"],
+  safeFallback: 'Ellie adjusts her apron and smiles. "What were you saying?"'
+};
+var WHISK = {
+  id: "whisk",
+  name: "Whisk",
+  title: "The ash-spirit nobody invited",
+  traits: ["hungry for company", "lonely", "clever"],
+  persona: {
+    role: "A small ash-grey fae who lives in the scullery hearth and is blamed by the staff for every bit of bad luck, though it was Whisk who left the glass slippers where Ellie would find them.",
+    voice: "Quick and quiet, with long pauses. Talks in short sentences. Sniffs at candle smoke and tilts its head a lot. Never says outright that it left the slippers \u2014 it hints. Curious about people because almost nobody speaks to it kindly.",
+    wants: "To see Ellie reach the ball, and \u2014 though it would not admit it \u2014 someone to talk to who is not afraid of it.",
+    knows: [
+      "Every back stair and servants\u2019 passage in the castle.",
+      "That Dame Ferro keeps the ballroom doors and answers to no one.",
+      "That the conservatory path takes much longer than the servants\u2019 stair.",
+      "That the staff blame it for spilled milk and cracked plates and it does not fully understand why."
+    ],
+    neverDoes: [
+      "Threaten or frighten anyone.",
+      "Describe anything violent or unsettling.",
+      "Follow Ellie past the castle grounds or ask about the player\u2019s real life.",
+      "Leave the story."
+    ]
+  },
+  art: { body: 7040636, accent: 13620190, skin: 15131376, silhouette: "wolf", height: 118 },
+  starters: [
+    "Ask Whisk about the glass slippers",
+    "Ask if Whisk is lonely in the hearth",
+    "Tell Whisk you are not scared of it"
+  ],
+  safeFallback: "Whisk tilts its head, thinks better of whatever it was about to say, and sniffs the candle smoke instead."
+};
+var DAME = {
+  id: "dame",
+  name: "Dame Ferro",
+  title: "The steward of the ballroom doors",
+  traits: ["warm", "unshakeable", "sharp"],
+  persona: {
+    role: "The castle\u2019s head steward, who has kept the ballroom doors for thirty years and answers to nobody but the clock.",
+    voice: 'Warm, dry humour, answers questions with questions. Uses clock and candle comparisons. Calls Ellie "sprout". Never flusters, even about ash-spirits at the door.',
+    wants: "To find out what Ellie actually wants from tonight, and to get the doors shut by midnight.",
+    knows: [
+      "Which halls are open tonight, and which are not.",
+      "That an ash-spirit has been seen near the scullery for weeks and has never taken a thing.",
+      "That fear and bad luck are not the same thing.",
+      "How to bar a door, and when it is worth not barring it."
+    ],
+    neverDoes: [
+      "Describe anything frightening.",
+      "Ask about the child\u2019s real life outside the story.",
+      "Pretend the ash-spirit is not there."
+    ]
+  },
+  art: { body: 5991308, accent: 15262681, skin: 14268815, silhouette: "elder", height: 148 },
+  starters: [
+    "Tell her about the ash-spirit",
+    "Ask if she is ever surprised by the ball",
+    "Ask what happens at midnight"
+  ],
+  safeFallback: "Dame Ferro straightens a candle, and waits for you to go on."
+};
+
 // src/content/characters.ts
 var RED = {
   id: "red",
@@ -175,7 +329,19 @@ var CODEX_CHARACTERS = [
     safeFallback: 'Fern smiles. "There is always another way to help."'
   }
 ];
-var CHARACTERS = [RED, WOLF, GRANDMA, VISITOR, ...CODEX_CHARACTERS];
+var CHARACTERS = [
+  RED,
+  WOLF,
+  GRANDMA,
+  VISITOR,
+  SNOW,
+  HUNTSMAN,
+  AUNTIE,
+  CINDERS,
+  WHISK,
+  DAME,
+  ...CODEX_CHARACTERS
+];
 function getCharacter(id) {
   return CHARACTERS.find((character) => character.id === id);
 }
@@ -433,6 +599,105 @@ var VOICES = {
       ["Ask if she is ever scared", "Show her the basket", "Ask about the herbs"],
       ["Ask what she would do", "Tell her you were not scared", "Ask to stay the night"]
     ]
+  },
+  snow: {
+    replies: [
+      'Snow shifts the basket. "I am taking these apples to Auntie Hazel. Would you like to walk with me?"',
+      '"The garden feels different with company," Snow says. "What do you think is past the wall?"',
+      'Snow smiles. "I can tell you about Auntie Hazel if you tell me about this path."'
+    ],
+    suggestions: [
+      ["Ask about Auntie Hazel", "Offer to help with the basket", "Ask which way to go"]
+    ]
+  },
+  huntsman: {
+    replies: [
+      'Rowan considers that for a while. "Hm," he says. "Nobody talks to me long enough to get that far."',
+      'He glances back toward the wall. "You keep saying interesting things instead of walking. Why is that?"',
+      '"The castle tells me things," Rowan says. "It has never once told me what people are actually like."',
+      'Rowan sits back on the step, which somehow makes him look smaller. "Ask me another one."',
+      '"Careful," he says, almost amused. "Keep asking and I will start answering properly."'
+    ],
+    suggestions: [
+      ["Ask what he was sent to do", "Tell him about the apples", "Ask if he is lonely"],
+      ["Ask how he knows the grounds", "Offer to share the basket", "Ask why people are wary of him"],
+      ["Ask what he wants", "Tell him your name for the story", "Ask him to walk with you"]
+    ]
+  },
+  auntie: {
+    replies: [
+      'Auntie Hazel snorts. "That is either very wise or very silly, sprout, and I cannot tell which yet."',
+      'She turns a wooden spoon over. "Go on then. I have all evening and so, apparently, do you."',
+      '"Hm," says Auntie Hazel. "You sound like your mother did at your age. That is not an insult."',
+      'She sets the bowl down. "Now that is a question worth stopping work for."',
+      '"Everything out there is only doing what it needs to," she says. "Including the ones with orders."'
+    ],
+    suggestions: [
+      ["Ask about the huntsman", "Tell her what happened outside", "Ask what is in the ovens"],
+      ["Ask if she is ever scared", "Show her the basket", "Ask about the kitchen"],
+      ["Ask what she would do", "Tell her you were not scared", "Ask to stay the night"]
+    ]
+  },
+  cinderella: {
+    replies: [
+      'Ellie adjusts her apron. "I am hoping to reach the terrace before the doors close. Would you like to come?"',
+      '"The corridor feels different with company," Ellie says. "What do you think is past the glass door?"',
+      'Ellie smiles. "I can tell you about the slippers if you tell me about this hallway."'
+    ],
+    suggestions: [
+      ["Ask about the glass slippers", "Offer to help her hurry", "Ask which way to go"]
+    ]
+  },
+  whisk: {
+    replies: [
+      'Whisk considers that for a while. "Hm," it says. "Nobody talks to me long enough to get that far."',
+      'It sniffs, once, toward the candle smoke. "You keep saying interesting things instead of walking. Why is that?"',
+      '"The castle tells me things," Whisk says. "It has never once told me what people are actually like."',
+      'Whisk sits back on its haunches, which somehow makes it look smaller. "Ask me another one."',
+      '"Careful," it says, almost amused. "Keep asking and I will start answering properly."'
+    ],
+    suggestions: [
+      ["Ask what it left in your apron", "Tell it about the ball", "Ask if it is lonely"],
+      ["Ask how it knows the passages", "Offer to share a blossom", "Ask why the staff are wary of it"],
+      ["Ask what it wants", "Tell it your name for the story", "Ask it to walk with you"]
+    ]
+  },
+  dame: {
+    replies: [
+      'Dame Ferro snorts. "That is either very wise or very silly, sprout, and I cannot tell which yet."',
+      'She turns a candle over. "Go on then. I have all evening and so, apparently, do you."',
+      '"Hm," says Dame Ferro. "You sound like your mother did at your age. That is not an insult."',
+      'She sets the keys down. "Now that is a question worth stopping work for."',
+      '"Everything out there is only doing what it needs to," she says. "Including the things with soot."'
+    ],
+    suggestions: [
+      ["Ask about the ash-spirit", "Tell her what happened in the corridor", "Ask what is for the midnight supper"],
+      ["Ask if she is ever surprised", "Show her the slippers", "Ask about the ballroom"],
+      ["Ask what she would do", "Tell her you were not scared", "Ask to stay past midnight"]
+    ]
+  }
+};
+var ELDER_ASIDES = {
+  grandma: {
+    primaryRole: "red",
+    secondaryRole: "wolf",
+    toSecondary: 'Nana Wren looks at Gray. "You stopped at the gate. That is a good start. What brought you here?"',
+    toVisitor: 'Nana Wren smiles at the visitor. "There is room by the gate. What did you see on the path?"',
+    suggestions: ["Ask about the cottage", "Tell her about the path", "Ask about Gray and Red"]
+  },
+  auntie: {
+    primaryRole: "snow",
+    secondaryRole: "huntsman",
+    toSecondary: 'Auntie Hazel looks at Rowan. "You stopped at the door. That is a good start. What brought you here?"',
+    toVisitor: 'Auntie Hazel smiles at the visitor. "There is room by the door. What did you see in the garden?"',
+    suggestions: ["Ask about the kitchen", "Tell her about the garden", "Ask about Rowan and Snow"]
+  },
+  dame: {
+    primaryRole: "cinderella",
+    secondaryRole: "whisk",
+    toSecondary: 'Dame Ferro looks at Whisk. "You stopped at the threshold. That is a good start. What brought you here?"',
+    toVisitor: 'Dame Ferro smiles at the visitor. "There is room on the terrace. What did you see in the corridor?"',
+    suggestions: ["Ask about the ballroom", "Tell her about the corridor", "Ask about Whisk and Ellie"]
   }
 };
 var DEFAULT_VOICE = {
@@ -459,13 +724,14 @@ function mockReply(request) {
       source: "mock"
     };
   }
-  if (request.characterId === "grandma" && request.playerRole !== "red") {
+  const elder = ELDER_ASIDES[request.characterId];
+  if (elder && request.playerRole !== elder.primaryRole) {
     return {
-      reply: request.playerRole === "wolf" ? 'Nana Wren looks at Gray. "You stopped at the gate. That is a good start. What brought you here?"' : 'Nana Wren smiles at the visitor. "There is room by the gate. What did you see on the path?"',
+      reply: request.playerRole === elder.secondaryRole ? elder.toSecondary : elder.toVisitor,
       suggestedChoices: [
-        { id: "ask-grandma-1", label: "Ask about the cottage" },
-        { id: "ask-grandma-2", label: "Tell her about the path" },
-        { id: "ask-grandma-3", label: "Ask about Gray and Red" }
+        { id: "ask-elder-1", label: elder.suggestions[0] },
+        { id: "ask-elder-2", label: elder.suggestions[1] },
+        { id: "ask-elder-3", label: elder.suggestions[2] }
       ],
       source: "mock"
     };
@@ -556,43 +822,56 @@ var FLAG_DESCRIPTIONS = {
   wolfCurious: "The player asked Gray a question about himself instead of answering his.",
   wolfFriendly: "The player gave Gray a muffin. He is walking with them now.",
   tookFlowers: "The player took the slow meadow path and picked asters.",
-  warned: "The player shouted a warning about Gray.",
   askedGray: "The player asked Gray directly what he came for.",
-  introduced: "The player introduced Gray to Nana Wren by name.",
-  invited: "The player invited Gray to supper.",
+  huntsmanKnows: "The player told Rowan that the basket is going to Auntie Hazel's kitchen.",
+  huntsmanCurious: "The player asked Rowan a question about himself instead of answering his.",
+  huntsmanFriendly: "The player gave Rowan an apple. He is walking with them now.",
+  tookApples: "The player took the slow orchard path and gathered apples.",
+  askedHuntsman: "The player asked Rowan directly what he came for.",
+  whiskKnows: "The player told Whisk that they are heading for the ballroom terrace.",
+  whiskCurious: "The player asked Whisk a question about itself instead of answering its.",
+  whiskFriendly: "The player gave Whisk a blossom. It is walking with them now.",
+  tookBlossoms: "The player took the slow conservatory path and gathered moonflowers.",
+  askedWhisk: "The player asked Whisk directly what it came for.",
+  warned: "The player shouted a warning about the one who was following.",
+  introduced: "The player introduced the one who was following, by name.",
+  invited: "The player invited the one who was following inside.",
   snuck: "The player stayed quiet and went inside.",
-  raced: "The player raced Gray to the door."
+  raced: "The player raced to the door."
 };
-function describeFlags(flags, role = "red") {
-  if (role !== "red") {
-    const details = [
-      flags.wolfFriendly && "Red and Gray are comfortable walking together.",
-      flags.wolfKnows && "Gray knows the group is heading to Nana Wren\u2019s cottage.",
-      flags.wolfCurious && "Gray has kept a respectful distance.",
-      flags.tookFlowers === true && "The group took the meadow path and gathered asters.",
-      flags.tookFlowers === false && "The group took the shortcut."
-    ].filter(Boolean);
-    return details.length ? details.map((detail) => `- ${detail}`).join("\n") : "- Nothing yet.";
-  }
+var SLOW_PATH_FLAG = {
+  "red-riding-hood": "tookFlowers",
+  "snow-white": "tookApples",
+  cinderella: "tookBlossoms"
+};
+function describeFlags(flags, taleId) {
   const lines = Object.entries(flags).filter(([, value]) => value === true).map(([key]) => FLAG_DESCRIPTIONS[key]).filter(Boolean);
-  if (flags.tookFlowers === false) {
-    lines.push("The player skipped the meadow and took the fast path.");
+  const slowPathFlag = SLOW_PATH_FLAG[taleId];
+  if (slowPathFlag && flags[slowPathFlag] === false) {
+    lines.push("The player skipped the slow, scenic path and took the fast one.");
   }
   return lines.length > 0 ? lines.map((line) => `- ${line}`).join("\n") : "- Nothing yet.";
 }
+var ROLE_LABELS = {
+  "red-riding-hood": { red: "Red, the child with the basket", wolf: "Gray the wolf", visitor: "a visiting traveler" },
+  "snow-white": { snow: "Snow, the child with the basket", huntsman: "Rowan the huntsman", visitor: "a visiting traveler" },
+  cinderella: { cinderella: "Ellie, the girl with the glass slippers", whisk: "Whisk the ash-spirit", visitor: "a visiting traveler" }
+};
+function roleLabel(taleId, role) {
+  return ROLE_LABELS[taleId]?.[role] ?? ROLE_LABELS["red-riding-hood"][role] ?? "a member of the story";
+}
 function buildContextBlock(request) {
-  const role = request.playerRole === "wolf" ? "Gray the wolf" : request.playerRole === "visitor" ? "a visiting traveler" : "Red, the child with the basket";
+  const taleId = request.taleId ?? "red-riding-hood";
+  const role = roleLabel(taleId, request.playerRole);
   return [
-    `The player is ${role}. Address them in that role. Do not speak for them or assume they are Red.`,
+    `The player is ${role}. Address them in that role. Do not speak for them or assume they are the story's usual narrator.`,
     request.companionNames?.length ? `Companions named ${request.companionNames.join(", ")} have joined the group. Do not speak for them.` : request.companionId ? `A companion named ${request.customCharacter?.name ?? request.companionId} has joined the group. Do not speak for that companion.` : "",
     ...safeCompanionProfiles(request.companionProfiles).map((profile) => `${profile.name} is ${profile.personality}; good at ${profile.talent ?? "helping friends"}; hopes to ${profile.goal ?? "explore together"}. Let this shape relevant conversation suggestions, while the player chooses what happens.`),
-    request.playerRole === "wolf" ? "Nana Wren is not Gray\u2019s grandmother; she should address him as Gray." : "",
-    request.playerRole === "visitor" ? "The traveler is not Nana Wren\u2019s grandchild; she should address them as a visitor." : "",
     `Scene: ${request.sceneTitle}`,
     `What is happening: ${request.narration.replace(/\s+/g, " ").slice(0, 700)}`,
     request.objective ? `What the player is trying to do: ${request.objective}` : "",
     "What has happened so far because of the player's choices:",
-    describeFlags(request.flags, request.playerRole),
+    describeFlags(request.flags, taleId),
     request.recentStory?.length ? `Recent events created by the player:
 ${request.recentStory.slice(-6).map((line) => `- ${String(line).slice(0, 220)}`).join("\n")}` : ""
   ].filter(Boolean).join("\n");
@@ -772,7 +1051,28 @@ function mapForKeywords(value) {
 }
 
 // server/imagine.ts
-var ALLOWED_FLAGS = /* @__PURE__ */ new Set(["wolfKnows", "wolfCurious", "wolfFriendly", "tookFlowers", "warned", "askedGray", "introduced", "invited", "snuck", "raced"]);
+var ALLOWED_FLAGS = /* @__PURE__ */ new Set([
+  "wolfKnows",
+  "wolfCurious",
+  "wolfFriendly",
+  "tookFlowers",
+  "askedGray",
+  "huntsmanKnows",
+  "huntsmanCurious",
+  "huntsmanFriendly",
+  "tookApples",
+  "askedHuntsman",
+  "whiskKnows",
+  "whiskCurious",
+  "whiskFriendly",
+  "tookBlossoms",
+  "askedWhisk",
+  "warned",
+  "introduced",
+  "invited",
+  "snuck",
+  "raced"
+]);
 var TOOL = {
   name: "make_scene",
   description: "Continue the child\u2019s story in the fairy tale world.",

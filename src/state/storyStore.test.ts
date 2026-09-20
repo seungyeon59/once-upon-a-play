@@ -53,6 +53,29 @@ test('starting a tale opens the first scene and seeds the log', () => {
   assert.ok(localStorage.getItem('tale-weaver:v1'), 'progress should be saved')
 })
 
+test('starting Snow White or Cinderella opens their own first scene', () => {
+  useStory.getState().startTale('snow-white', 'snow')
+  let state = useStory.getState()
+  assert.equal(state.screen, 'play')
+  assert.equal(state.sceneId, 'castle-courtyard')
+  assert.equal(state.log.length, 1)
+
+  useStory.getState().startTale('cinderella', 'cinderella')
+  state = useStory.getState()
+  assert.equal(state.sceneId, 'castle-scullery')
+  assert.equal(state.log.length, 1)
+})
+
+test('a Snow White huntsman conversation sends that tale\'s id and scene', async () => {
+  useStory.getState().startTale('snow-white', 'snow')
+  useStory.getState().openDialogue('huntsman')
+  await useStory.getState().say('What were you sent to do?')
+  const sent = sentRequests.at(-1)!
+  assert.equal(sent.taleId, 'snow-white')
+  assert.equal(sent.characterId, 'huntsman')
+  assert.equal(sent.sceneTitle, 'The Postern Gate at Dawn')
+})
+
 test('opening a character offers their starters', () => {
   useStory.getState().startTale('red-riding-hood')
   useStory.getState().openDialogue('wolf')

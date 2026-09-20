@@ -82,58 +82,76 @@ export function buildSystemPrompt(character: Character): string {
   ].join('\n')
 }
 
-/** Flags are internal ids; describe them to the model in plain English. */
+/** Flags are internal ids; describe them to the model in plain English. Shared across tales where names overlap (e.g. `warned`, `introduced`). */
 const FLAG_DESCRIPTIONS: Record<string, string> = {
   wolfKnows: 'The player told Gray that the basket is going to Nana Wren\'s cottage.',
   wolfCurious: 'The player asked Gray a question about himself instead of answering his.',
   wolfFriendly: 'The player gave Gray a muffin. He is walking with them now.',
   tookFlowers: 'The player took the slow meadow path and picked asters.',
-  warned: 'The player shouted a warning about Gray.',
   askedGray: 'The player asked Gray directly what he came for.',
-  introduced: 'The player introduced Gray to Nana Wren by name.',
-  invited: 'The player invited Gray to supper.',
+  huntsmanKnows: 'The player told Rowan that the basket is going to Auntie Hazel\'s kitchen.',
+  huntsmanCurious: 'The player asked Rowan a question about himself instead of answering his.',
+  huntsmanFriendly: 'The player gave Rowan an apple. He is walking with them now.',
+  tookApples: 'The player took the slow orchard path and gathered apples.',
+  askedHuntsman: 'The player asked Rowan directly what he came for.',
+  whiskKnows: 'The player told Whisk that they are heading for the ballroom terrace.',
+  whiskCurious: 'The player asked Whisk a question about itself instead of answering its.',
+  whiskFriendly: 'The player gave Whisk a blossom. It is walking with them now.',
+  tookBlossoms: 'The player took the slow conservatory path and gathered moonflowers.',
+  askedWhisk: 'The player asked Whisk directly what it came for.',
+  warned: 'The player shouted a warning about the one who was following.',
+  introduced: 'The player introduced the one who was following, by name.',
+  invited: 'The player invited the one who was following inside.',
   snuck: 'The player stayed quiet and went inside.',
-  raced: 'The player raced Gray to the door.',
+  raced: 'The player raced to the door.',
 }
 
-export function describeFlags(flags: ChatRequest['flags'], role: ChatRequest['playerRole'] = 'red'): string {
-  if (role !== 'red') {
-    const details = [
-      flags.wolfFriendly && 'Red and Gray are comfortable walking together.',
-      flags.wolfKnows && 'Gray knows the group is heading to Nana Wren’s cottage.',
-      flags.wolfCurious && 'Gray has kept a respectful distance.',
-      flags.tookFlowers === true && 'The group took the meadow path and gathered asters.',
-      flags.tookFlowers === false && 'The group took the shortcut.',
-    ].filter(Boolean)
-    return details.length ? details.map((detail) => `- ${detail}`).join('\n') : '- Nothing yet.'
-  }
+/** Which flag records the "took the slow, scenic path" choice; every tale has exactly one. */
+const SLOW_PATH_FLAG: Record<string, string> = {
+  'red-riding-hood': 'tookFlowers',
+  'snow-white': 'tookApples',
+  cinderella: 'tookBlossoms',
+}
+
+export function describeFlags(flags: ChatRequest['flags'], taleId: string): string {
   const lines = Object.entries(flags)
     .filter(([, value]) => value === true)
     .map(([key]) => FLAG_DESCRIPTIONS[key])
     .filter(Boolean)
 
-  if (flags.tookFlowers === false) {
-    lines.push('The player skipped the meadow and took the fast path.')
+  const slowPathFlag = SLOW_PATH_FLAG[taleId]
+  if (slowPathFlag && flags[slowPathFlag] === false) {
+    lines.push('The player skipped the slow, scenic path and took the fast one.')
   }
   return lines.length > 0 ? lines.map((line) => `- ${line}`).join('\n') : '- Nothing yet.'
 }
 
+/** Every tale's roles, and how to address each one in the prompt. */
+const ROLE_LABELS: Record<string, Record<string, string>> = {
+  'red-riding-hood': { red: 'Red, the child with the basket', wolf: 'Gray the wolf', visitor: 'a visiting traveler' },
+  'snow-white': { snow: 'Snow, the child with the basket', huntsman: 'Rowan the huntsman', visitor: 'a visiting traveler' },
+  cinderella: { cinderella: 'Ellie, the girl with the glass slippers', whisk: 'Whisk the ash-spirit', visitor: 'a visiting traveler' },
+}
+
+function roleLabel(taleId: string, role: string): string {
+  return ROLE_LABELS[taleId]?.[role] ?? ROLE_LABELS['red-riding-hood'][role] ?? 'a member of the story'
+}
+
 /** The turn-by-turn context, rebuilt each request so it always matches the store. */
 export function buildContextBlock(request: ChatRequest): string {
-  const role = request.playerRole === 'wolf' ? 'Gray the wolf' : request.playerRole === 'visitor' ? 'a visiting traveler' : 'Red, the child with the basket'
+  const taleId = request.taleId ?? 'red-riding-hood'
+  const role = roleLabel(taleId, request.playerRole)
   return [
-    `The player is ${role}. Address them in that role. Do not speak for them or assume they are Red.`,
+    `The player is ${role}. Address them in that role. Do not speak for them or assume they are the story's usual narrator.`,
     request.companionNames?.length
       ? `Companions named ${request.companionNames.join(', ')} have joined the group. Do not speak for them.`
       : request.companionId ? `A companion named ${request.customCharacter?.name ?? request.companionId} has joined the group. Do not speak for that companion.` : '',
     ...safeCompanionProfiles(request.companionProfiles).map((profile) => `${profile.name} is ${profile.personality}; good at ${profile.talent ?? 'helping friends'}; hopes to ${profile.goal ?? 'explore together'}. Let this shape relevant conversation suggestions, while the player chooses what happens.`),
-    request.playerRole === 'wolf' ? 'Nana Wren is not Gray’s grandmother; she should address him as Gray.' : '',
-    request.playerRole === 'visitor' ? 'The traveler is not Nana Wren’s grandchild; she should address them as a visitor.' : '',
     `Scene: ${request.sceneTitle}`,
     `What is happening: ${request.narration.replace(/\s+/g, ' ').slice(0, 700)}`,
     request.objective ? `What the player is trying to do: ${request.objective}` : '',
     'What has happened so far because of the player\'s choices:',
-    describeFlags(request.flags, request.playerRole),
+    describeFlags(request.flags, taleId),
     request.recentStory?.length ? `Recent events created by the player:\n${request.recentStory.slice(-6).map((line) => `- ${String(line).slice(0, 220)}`).join('\n')}` : '',
   ]
     .filter(Boolean)

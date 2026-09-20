@@ -1,7 +1,6 @@
 import { Application, Rectangle, Sprite, Texture } from 'pixi.js'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { getScene, getTale } from '../content/tales/redRidingHood.ts'
-import { getRoleView } from '../content/tales/roleViews.ts'
+import { getScene, getTale, getRoleView } from '../content/tales/index.ts'
 import { paintParallaxBackdrop, bakeCharacter } from '../pixi/placeholderArt.ts'
 import { accessoryBadge, decorationBadge } from '../pixi/accessory.ts'
 import type { AccessoryFit } from '../content/shopItems.ts'
@@ -54,14 +53,14 @@ export interface StoryArtExtras {
 export async function renderStoryArt(taleId: string, sceneId: string, role: PlayerRole, characters: Character[], companionIds: string[], positions: Record<string, { x: number; y: number }> = {}, imaginedScene?: ImaginedScene, extras: StoryArtExtras = {}): Promise<string> {
   const tale = getTale(taleId)
   const scene = tale && getScene(tale, sceneId)
-  if (!scene) throw new Error('Story scene not found')
+  if (!tale || !scene) throw new Error('Story scene not found')
   const width = 960
   const height = 540
   const app = new Application()
   await app.init({ width, height, background: 0xfffaf0, antialias: true, preference: 'webgl', preserveDrawingBuffer: true })
   const ownedTextures: Texture[] = []
   try {
-    const view = getRoleView(scene, extras.flags ?? {}, role)
+    const view = getRoleView(tale, scene, extras.flags ?? {}, role)
     const layers = imaginedScene ? null : paintParallaxBackdrop(scene.backdrop, width, height)
     if (layers) app.stage.addChild(layers.base, layers.middle)
     else {

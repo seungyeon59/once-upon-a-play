@@ -10,8 +10,7 @@ import type {
   ImaginedScene,
   ImagineResponse,
 } from './types.ts'
-import { getScene, getTale } from '../content/tales/redRidingHood.ts'
-import { getRoleView } from '../content/tales/roleViews.ts'
+import { getScene, getTale, getRoleView } from '../content/tales/index.ts'
 import { CODEX_CHARACTERS, getCharacter } from '../content/characters.ts'
 import { requestReply } from '../api/chat.ts'
 import { checkChildInput } from '../../server/safety.ts'
@@ -194,7 +193,7 @@ export const useStory = create<StoryStore>((set, get) => ({
       taleId,
       sceneId: scene.id,
       flags: {},
-      log: [entry('narration', getRoleView(scene, {}, playerRole).variant.narration, undefined, scene.id)],
+      log: [entry('narration', getRoleView(tale, scene, {}, playerRole).variant.narration, undefined, scene.id)],
       dialogues: {},
       playerRole,
       companionId: null,
@@ -336,9 +335,9 @@ export const useStory = create<StoryStore>((set, get) => ({
     const tale = state.taleId ? getTale(state.taleId) : undefined
     const character = characterId ? getCharacter(characterId) ?? state.customCharacters.find((candidate) => candidate.id === characterId) : undefined
     const scene = tale ? getScene(tale, state.sceneId) : undefined
-    if (!characterId || !character || !scene || state.pending) return
+    if (!characterId || !character || !tale || !scene || state.pending) return
 
-    const variant = getRoleView(scene, state.flags, state.playerRole, state.companionId, state.customCharacter, state.companionIds.map((id) => getCharacter(id)?.name ?? state.customCharacters.find((item) => item.id === id)?.name ?? id), state.customCharacters).variant
+    const variant = getRoleView(tale, scene, state.flags, state.playerRole, state.companionId, state.customCharacter, state.companionIds.map((id) => getCharacter(id)?.name ?? state.customCharacters.find((item) => item.id === id)?.name ?? id), state.customCharacters).variant
     const history = state.dialogues[characterId] ?? []
 
     const withSaid: Saved = {
@@ -349,6 +348,7 @@ export const useStory = create<StoryStore>((set, get) => ({
     set({ ...withSaid, pending: true, suggestions: [], notice: null })
 
     const response = await requestReply({
+      taleId: tale.id,
       characterId,
       playerRole: state.playerRole,
       companionId: state.companionId,
@@ -421,7 +421,7 @@ export const useStory = create<StoryStore>((set, get) => ({
         sceneId = nextScene.id
         // The variant is picked with the *new* flags — this is where an earlier
         // choice becomes visible in a later scene.
-        log.push(entry('narration', getRoleView(nextScene, flags, state.playerRole, state.companionId, state.customCharacter, state.companionIds.map((id) => getCharacter(id)?.name ?? state.customCharacters.find((item) => item.id === id)?.name ?? id), state.customCharacters).variant.narration, undefined, nextScene.id))
+        log.push(entry('narration', getRoleView(tale, nextScene, flags, state.playerRole, state.companionId, state.customCharacter, state.companionIds.map((id) => getCharacter(id)?.name ?? state.customCharacters.find((item) => item.id === id)?.name ?? id), state.customCharacters).variant.narration, undefined, nextScene.id))
       }
     }
 
@@ -440,10 +440,10 @@ export const useStory = create<StoryStore>((set, get) => ({
     const state = get()
     const tale = state.taleId ? getTale(state.taleId) : undefined
     const scene = tale ? getScene(tale, state.sceneId) : undefined
-    if (!scene || scene.ending || state.imaginedScene?.ending || get().imagining) return
+    if (!tale || !scene || scene.ending || state.imaginedScene?.ending || get().imagining) return
     const verdict = checkChildInput(idea)
     if (!verdict.ok) { set({ imagineNotice: verdict.childFacingMessage }); return }
-    const view = getRoleView(scene, state.flags, state.playerRole, state.companionId, state.customCharacter, state.companionIds.map((id) => getCharacter(id)?.name ?? state.customCharacters.find((item) => item.id === id)?.name ?? id), state.customCharacters)
+    const view = getRoleView(tale, scene, state.flags, state.playerRole, state.companionId, state.customCharacter, state.companionIds.map((id) => getCharacter(id)?.name ?? state.customCharacters.find((item) => item.id === id)?.name ?? id), state.customCharacters)
     set({ imagining: true, imagineNotice: null })
     try {
       const response = await fetch('/api/imagine', {
@@ -601,6 +601,6 @@ export function useCurrentScene() {
   const companionIds = useStory((s) => s.companionIds)
   const customCharacters = useStory((s) => s.customCharacters)
   const companionNames = companionIds.map((id) => getCharacter(id)?.name ?? customCharacters.find((item) => item.id === id)?.name ?? id)
-  const view = scene ? getRoleView(scene, flags, playerRole, companionId, customCharacter, companionNames, customCharacters) : undefined
+  const view = tale && scene ? getRoleView(tale, scene, flags, playerRole, companionId, customCharacter, companionNames, customCharacters) : undefined
   return { tale, scene: view?.scene, variant: view?.variant }
 }

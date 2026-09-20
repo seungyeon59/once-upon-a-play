@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { splitReading } from './readingScript.ts'
-import { TALES } from '../src/content/tales/redRidingHood.ts'
+import { TALES } from '../src/content/tales/index.ts'
 
 test('keeps narration and dialogue in order and assigns known speakers', () => {
   const parts = splitReading('Gray steps out of the ferns. "Hello," he says. "Follow me." Nana Wren opens the door. "Come in," she says.')

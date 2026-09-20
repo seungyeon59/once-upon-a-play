@@ -7,7 +7,12 @@ import { validateScenePlan } from './scenePlan.ts'
 import { safeCompanionProfiles } from './customCharacter.ts'
 import { mapForKeywords } from '../src/content/keywordMaps.ts'
 
-const ALLOWED_FLAGS = new Set(['wolfKnows', 'wolfCurious', 'wolfFriendly', 'tookFlowers', 'warned', 'askedGray', 'introduced', 'invited', 'snuck', 'raced'])
+const ALLOWED_FLAGS = new Set([
+  'wolfKnows', 'wolfCurious', 'wolfFriendly', 'tookFlowers', 'askedGray',
+  'huntsmanKnows', 'huntsmanCurious', 'huntsmanFriendly', 'tookApples', 'askedHuntsman',
+  'whiskKnows', 'whiskCurious', 'whiskFriendly', 'tookBlossoms', 'askedWhisk',
+  'warned', 'introduced', 'invited', 'snuck', 'raced',
+])
 const TOOL = {
   name: 'make_scene',
   description: 'Continue the child’s story in the fairy tale world.',

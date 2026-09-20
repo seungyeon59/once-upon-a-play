@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 
-import { TALES } from './content/tales/redRidingHood.ts'
+import { TALES } from './content/tales/index.ts'
 import { getCharacter } from './content/characters.ts'
 import { PixiStage } from './pixi/PixiStage.tsx'
 import { useCurrentScene, useStory } from './state/storyStore.ts'
@@ -133,7 +133,8 @@ export default function App() {
   const availableReadyMade = CODEX_CHARACTERS.filter((character) => !store.companionIds.includes(character.id))
   const secretSceneKey = sceneItemKey(scene?.id ?? '', store.imaginedScene ? store.log.findLast((item) => item.imaginedScene)?.id ?? '' : undefined)
   const gameKinds = ['pairs', 'echo', 'odd', 'trail', 'catch', 'riddle'] as const
-  const scenery = sceneryFor(store.imaginedScene?.map.backdropId ?? (scene?.backdrop === 'hearth' ? 'kitchen' : 'forest'), !store.imaginedScene && scene?.backdrop !== 'hearth')
+  const isEndingBackdrop = scene?.backdrop === 'hearth' || scene?.backdrop === 'castle-hall' || scene?.backdrop === 'ballroom'
+  const scenery = sceneryFor(store.imaginedScene?.map.backdropId ?? (isEndingBackdrop ? 'kitchen' : 'forest'), !store.imaginedScene && !isEndingBackdrop)
   const placedDecorations = store.placedItems[secretSceneKey] ?? []
 
   function startRandomGame(character: Character) {
@@ -149,7 +150,7 @@ export default function App() {
       store.awardCoins(amount)
       setTreasureMessage(`A hidden coin pouch! +${amount} coins`)
     } else {
-      startRandomGame(characters.find((character) => character.id !== store.playerRole) ?? getCharacter('red')!)
+      startRandomGame(characters.find((character) => character.id !== store.playerRole) ?? characters[0])
     }
   }
 

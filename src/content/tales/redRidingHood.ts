@@ -408,12 +408,11 @@ export const RED_RIDING_HOOD: Tale = {
   startSceneId: 'forest-path',
   scenes: [forestPath, fork, cottage, endingClever, endingFriend, endingCloseCall],
   characters: CHARACTERS,
-}
-
-export const TALES: Tale[] = [RED_RIDING_HOOD]
-
-export function getTale(id: string): Tale | undefined {
-  return TALES.find((tale) => tale.id === id)
+  roles: [
+    { id: 'red', title: 'Be Red', description: 'Carry the basket and lead the story.' },
+    { id: 'wolf', title: 'Be Gray the wolf', description: 'See the forest from Gray’s point of view.' },
+    { id: 'visitor', title: 'Be a visitor', description: 'Meet and talk to both Red and Gray.' },
+  ],
 }
 
 /** First matching variant wins; the last variant must have no `when` (the default). */

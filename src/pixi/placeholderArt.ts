@@ -71,14 +71,47 @@ export function paintBackdrop(kind: BackdropKind, width: number, height: number)
     case 'hearth':
       paintHearth(g, width, height)
       break
+    case 'castle-courtyard':
+      paintCourtyard(g, width, height)
+      break
+    case 'castle-garden':
+      paintOrchardGarden(g, width, height)
+      break
+    case 'castle-kitchen':
+      paintKitchenDoor(g, width, height)
+      break
+    case 'castle-hall':
+      paintGreatHall(g, width, height)
+      break
+    case 'castle-scullery':
+      paintScullery(g, width, height)
+      break
+    case 'castle-corridor':
+      paintCorridor(g, width, height)
+      break
+    case 'castle-terrace':
+      paintTerrace(g, width, height)
+      break
+    case 'ballroom':
+      paintBallroom(g, width, height)
+      break
   }
   paintBackdropDetails(g, kind, width, height)
   return layer
 }
 
+/** Interior scenes get warm wall trim and drifting sparks instead of outdoor dust and fireflies. */
+const INTERIOR_KINDS = new Set<BackdropKind>(['hearth', 'castle-hall', 'castle-scullery', 'castle-corridor', 'ballroom'])
+
+const DETAIL_SEEDS: Partial<Record<BackdropKind, number>> = {
+  'forest-path': 201, fork: 202, cottage: 203, hearth: 204,
+  'castle-courtyard': 205, 'castle-garden': 206, 'castle-kitchen': 207, 'castle-hall': 208,
+  'castle-scullery': 209, 'castle-corridor': 210, 'castle-terrace': 211, ballroom: 212,
+}
+
 function paintBackdropDetails(g: Graphics, kind: BackdropKind, w: number, h: number): void {
-  const random = rng(kind === 'forest-path' ? 201 : kind === 'fork' ? 202 : kind === 'cottage' ? 203 : 204)
-  if (kind === 'hearth') {
+  const random = rng(DETAIL_SEEDS[kind] ?? 204)
+  if (INTERIOR_KINDS.has(kind)) {
     // Books, warm wall trim and sparks keep the interior distinct from the paths.
     g.rect(w * 0.04, h * 0.12, w * 0.3, h * 0.025).fill(0x9b744e)
     for (let i = 0; i < 10; i += 1) g.rect(w * (0.055 + i * 0.026), h * (0.07 + i % 3 * 0.012), w * 0.018, h * 0.05).fill([0x8a574e, 0x8a986e, 0xceb481][i % 3])
@@ -112,9 +145,9 @@ export function paintParallaxBackdrop(kind: BackdropKind, width: number, height:
   const base = paintBackdrop(kind, worldWidth, height)
   const middle = new Graphics()
   const front = new Graphics()
-  const random = rng(kind === 'cottage' ? 91 : kind === 'fork' ? 93 : kind === 'hearth' ? 97 : 89)
+  const random = rng(kind === 'cottage' ? 91 : kind === 'fork' ? 93 : INTERIOR_KINDS.has(kind) ? 97 : 89)
 
-  if (kind === 'hearth') {
+  if (INTERIOR_KINDS.has(kind)) {
     // A nearby chair and the edge of a rug create an indoor foreground.
     front.ellipse(worldWidth * 0.16, height * 0.99, worldWidth * 0.18, height * 0.08).fill(0x6b4a35)
     front.rect(worldWidth * 0.87, height * 0.67, worldWidth * 0.055, height * 0.33).fill(0x33241d)
@@ -298,6 +331,197 @@ function paintHearth(g: Graphics, w: number, h: number): void {
   g.rect(0, h * 0.8, w, h * 0.2).fill(0x5a4030)
   g.rect(w * 0.3, h * 0.74, w * 0.26, 10).fill(0x8a6a4a)
   for (const x of [w * 0.32, w * 0.54]) g.rect(x, h * 0.75, 8, h * 0.12).fill(0x6f5238)
+}
+
+/* --------------------------------------------------------- castle grounds --- */
+
+/**
+ * A stretch of crenellated wall with two round towers. Shared by every
+ * courtyard-level scene, the way `forestBand` is shared by the forest scenes.
+ */
+function castleWallBand(g: Graphics, w: number, h: number, horizon: number, wallColor = 0x9a958a): void {
+  const wallTop = horizon - h * 0.22
+  g.rect(0, wallTop, w, horizon - wallTop + 4).fill(wallColor)
+  for (let i = 0; i < 16; i += 2) g.rect((w / 16) * i, wallTop - h * 0.03, w / 16, h * 0.03 + 2).fill(wallColor)
+  for (const tx of [w * 0.12, w * 0.88]) {
+    const towerTop = wallTop - h * 0.15
+    g.rect(tx - w * 0.06, towerTop, w * 0.12, horizon - towerTop).fill(lerpColor(wallColor, 0x000000, 0.14))
+    g.poly([tx - w * 0.07, towerTop, tx + w * 0.07, towerTop, tx, towerTop - h * 0.1]).fill(0x5c4a3e)
+  }
+}
+
+/** A round-canopy fruit tree, distinct from the forest's conifers. */
+function appleTree(g: Graphics, x: number, baseY: number, size: number): void {
+  g.rect(x - size * 0.045, baseY - size * 0.42, size * 0.09, size * 0.42).fill(0x5c4632)
+  g.circle(x, baseY - size * 0.64, size * 0.4).fill(0x4f7a4a)
+  g.circle(x - size * 0.18, baseY - size * 0.72, size * 0.26).fill(0x5c8a54)
+  g.circle(x + size * 0.16, baseY - size * 0.58, size * 0.22).fill(0x467347)
+  for (let i = 0; i < 5; i += 1) {
+    g.circle(x + (i % 2 ? 1 : -1) * size * (0.08 + i * 0.05), baseY - size * (0.5 + i * 0.07), size * 0.035).fill(0xc0392b)
+  }
+}
+
+function paintCourtyard(g: Graphics, w: number, h: number): void {
+  const random = rng(13)
+  skyGradient(g, w, h, 0xb9c6d6, 0xe9ddc4)
+  castleWallBand(g, w, h, h * 0.6)
+  g.rect(0, h * 0.6, w, h * 0.4).fill(0x9c9384)
+  for (let i = 0; i < 44; i += 1) {
+    g.circle(random() * w, h * (0.64 + random() * 0.34), 3 + random() * 4).fill({ color: 0x776e5f, alpha: 0.4 })
+  }
+  // The postern gate, centred, with a shallow arch.
+  g.rect(w * 0.44, h * 0.42, w * 0.12, h * 0.24).fill(0x5c4a37)
+  g.poly([w * 0.44, h * 0.42, w * 0.5, h * 0.33, w * 0.56, h * 0.42]).fill(0x483a2c)
+  g.rect(w * 0.475, h * 0.5, w * 0.02, h * 0.16).fill(0x3a2f24)
+}
+
+function paintOrchardGarden(g: Graphics, w: number, h: number): void {
+  const random = rng(31)
+  skyGradient(g, w, h, 0xc7d9c0, 0xefe3bd)
+  castleWallBand(g, w, h, h * 0.5, 0x8f9a80)
+  g.rect(0, h * 0.5, w, h * 0.5).fill(0x6f8a4f)
+
+  const splitX = w * 0.54
+  const splitY = h * 0.56
+  g.poly([splitX - w * 0.035, splitY, splitX + w * 0.035, splitY, w * 0.24, h, -w * 0.08, h]).fill(0xb2a077)
+  g.poly([splitX - w * 0.035, splitY, splitX + w * 0.035, splitY, w * 1.04, h * 0.9, w * 0.62, h]).fill(0xc0ac82)
+
+  for (const [x, y, size] of [[w * 0.07, h * 0.88, h * 0.24], [w * 0.19, h * 0.92, h * 0.28], [w * 0.03, h * 0.98, h * 0.22]] as const) {
+    appleTree(g, x, y, size)
+  }
+  for (let i = 0; i < 60; i += 1) {
+    g.circle(w * (0.01 + random() * 0.28), h * (0.68 + random() * 0.3), 2 + random() * 3).fill(random() > 0.5 ? 0xefc02c : 0xf5e6b8)
+  }
+  // Sundial at the split.
+  g.rect(splitX - 6, h * 0.42, 12, h * 0.16).fill(0x8a7c68)
+  g.ellipse(splitX, h * 0.4, w * 0.045, h * 0.018).fill(0xb7a980)
+}
+
+function paintKitchenDoor(g: Graphics, w: number, h: number): void {
+  const random = rng(53)
+  skyGradient(g, w, h, 0xc9b79a, 0xf1e2c4)
+  castleWallBand(g, w, h, h * 0.46, 0x958c78)
+  g.rect(0, h * 0.46, w, h * 0.54).fill(0x6a7a45)
+
+  const cx = w * 0.6, cy = h * 0.4, cw = w * 0.34, ch = h * 0.32
+  g.rect(cx - cw / 2, cy, cw, ch).fill(0x9a8f7c)
+  g.rect(cx + cw * 0.22, cy - ch * 0.34, cw * 0.1, ch * 0.34).fill(0x6b5c4c)
+  for (let i = 0; i < 6; i += 1) g.circle(cx + cw * 0.27 + random() * 10, cy - ch * 0.42 - i * 11, 5 + random() * 4).fill({ color: 0xd8d2c4, alpha: 0.32 })
+  g.rect(cx - cw * 0.08, cy + ch * 0.4, cw * 0.2, ch * 0.6).fill(0x4a3b2c)
+  g.circle(cx - cw * 0.03, cy + ch * 0.7, 4).fill(0xe4b363)
+  for (const side of [-1, 1]) {
+    g.rect(cx + side * cw * 0.28 - cw * 0.08, cy + ch * 0.12, cw * 0.16, ch * 0.2).fill(0xdccca0)
+    g.rect(cx + side * cw * 0.28 - cw * 0.08, cy + ch * 0.12, cw * 0.16, ch * 0.2).stroke({ width: 4, color: 0x6b5c4c })
+  }
+  for (let i = 0; i < 6; i += 1) g.ellipse(w * (0.03 + i * 0.035), h * (0.78 + random() * 0.1), w * 0.045, h * 0.05).fill(0x2f4a33)
+  for (let i = 0; i < 7; i += 1) g.ellipse(w * (0.1 + i * 0.06), h * (0.86 + random() * 0.06), 22, 9).fill(0x4f6b39)
+  g.rect(0, h * 0.82, w, 6).fill(0xb49873)
+}
+
+function paintGreatHall(g: Graphics, w: number, h: number): void {
+  const random = rng(97)
+  g.rect(0, 0, w, h).fill(0x3a3226)
+  g.rect(0, 0, w, h * 0.7).fill(0x4a4030)
+
+  for (const x of [w * 0.16, w * 0.5, w * 0.84]) {
+    g.rect(x - w * 0.035, 0, w * 0.07, h * 0.32).fill(0x6b3a3a)
+    g.poly([x - w * 0.035, h * 0.32, x + w * 0.035, h * 0.32, x, h * 0.37]).fill(0x6b3a3a)
+    g.rect(x - w * 0.035, h * 0.08, w * 0.07, h * 0.02).fill(0xceb481)
+  }
+
+  const fx = w * 0.72
+  g.rect(fx - w * 0.12, h * 0.3, w * 0.24, h * 0.5).fill(0x2b241c)
+  g.rect(fx - w * 0.08, h * 0.48, w * 0.16, h * 0.32).fill(0x14110d)
+  g.ellipse(fx, h * 0.74, w * 0.06, h * 0.08).fill(0xd98634)
+  g.ellipse(fx, h * 0.76, w * 0.04, h * 0.05).fill(0xf2c14e)
+  g.ellipse(fx, h * 0.82, w * 0.3, h * 0.12).fill(0x6b5a3e)
+
+  g.rect(0, h * 0.8, w, h * 0.2).fill(0x5a4a30)
+  g.rect(w * 0.18, h * 0.74, w * 0.4, 10).fill(0x8a7a4a)
+  for (const x of [w * 0.22, w * 0.5]) g.rect(x, h * 0.75, 8, h * 0.12).fill(0x6f5f38)
+  for (let i = 0; i < 10; i += 1) g.circle(w * (0.31 + random() * 0.56), h * (0.72 + random() * 0.1), 3 + random() * 3).fill(0xf5d4a5)
+}
+
+function paintScullery(g: Graphics, w: number, h: number): void {
+  const random = rng(109)
+  g.rect(0, 0, w, h).fill(0x30363a)
+  g.rect(0, 0, w, h * 0.68).fill(0x3d444a)
+
+  const fx = w * 0.72
+  g.rect(fx - w * 0.12, h * 0.32, w * 0.24, h * 0.48).fill(0x24282b)
+  g.rect(fx - w * 0.08, h * 0.5, w * 0.16, h * 0.3).fill(0x14171a)
+  g.ellipse(fx, h * 0.78, w * 0.14, h * 0.05).fill(0x565a54)
+  g.ellipse(fx - w * 0.03, h * 0.76, w * 0.05, h * 0.02).fill(0x6b6f68)
+
+  for (const y of [h * 0.24, h * 0.4, h * 0.56]) {
+    g.rect(w * 0.08, y, w * 0.26, h * 0.018).fill(0x6b5c48)
+    for (let i = 0; i < 4; i += 1) g.rect(w * (0.1 + i * 0.06), y - h * 0.055, w * 0.045, h * 0.05).fill([0x8a6a4a, 0x9aa87c, 0xc9a25c][i % 3])
+  }
+
+  g.rect(w * 0.44, h * 0.12, w * 0.14, h * 0.2).fill(0x1b2030)
+  g.rect(w * 0.44, h * 0.12, w * 0.14, h * 0.2).stroke({ width: 5, color: 0x6b5340 })
+  for (let i = 0; i < 8; i += 1) g.circle(w * (0.45 + random() * 0.11), h * (0.14 + random() * 0.16), 1.4).fill(0xd9e2f0)
+
+  g.rect(0, h * 0.8, w, h * 0.2).fill(0x4a4038)
+}
+
+function paintCorridor(g: Graphics, w: number, h: number): void {
+  const random = rng(131)
+  g.rect(0, 0, w, h).fill(0x3a3f4a)
+  g.rect(0, 0, w, h * 0.6).fill(0x454b57)
+
+  const rows = 6, cols = 14
+  for (let r = 0; r < rows; r += 1) {
+    for (let c = 0; c < cols; c += 1) {
+      if ((r + c) % 2 === 0) g.rect((w / cols) * c, h * 0.6 + (h * 0.4 / rows) * r, w / cols, h * 0.4 / rows).fill({ color: 0x2a2e36, alpha: 0.35 })
+    }
+  }
+
+  const splitX = w * 0.54
+  g.rect(splitX - w * 0.05, h * 0.16, w * 0.1, h * 0.46).fill(0x1c2836)
+  g.rect(splitX - w * 0.05, h * 0.16, w * 0.1, h * 0.46).stroke({ width: 6, color: 0x6b5c48 })
+  g.circle(splitX + w * 0.035, h * 0.38, 2).fill(0xceb481)
+
+  for (const x of [w * 0.12, w * 0.88]) g.rect(x - w * 0.025, h * 0.12, w * 0.05, h * 0.5).fill(0x565b63)
+  for (let i = 0; i < 9; i += 1) g.circle(w * (0.6 + random() * 0.38), h * (0.16 + random() * 0.1), 1.4).fill({ color: 0xffe9c0, alpha: 0.7 })
+}
+
+function paintTerrace(g: Graphics, w: number, h: number): void {
+  const random = rng(151)
+  skyGradient(g, w, h, 0x2c3560, 0x6a4a6e)
+  castleWallBand(g, w, h, h * 0.48, 0x50496a)
+  g.rect(0, h * 0.48, w, h * 0.22).fill(0x353056)
+
+  g.rect(0, h * 0.68, w, h * 0.03).fill(0xc9c2ad)
+  for (let i = 0; i < 20; i += 1) g.rect(w * 0.02 + i * (w / 20), h * 0.68, 6, h * 0.1).fill(0xc9c2ad)
+  g.rect(0, h * 0.78, w, h * 0.22).fill(0x2a2740)
+
+  for (const x of [w * 0.15, w * 0.45, w * 0.75]) {
+    g.circle(x, h * 0.6, w * 0.016).fill(0xffd98a)
+    g.circle(x, h * 0.6, w * 0.03).fill({ color: 0xffd98a, alpha: 0.3 })
+  }
+  for (let i = 0; i < 18; i += 1) g.circle(random() * w, h * (0.06 + random() * 0.3), 1 + random()).fill({ color: 0xfff3d6, alpha: 0.7 })
+}
+
+function paintBallroom(g: Graphics, w: number, h: number): void {
+  const random = rng(173)
+  g.rect(0, 0, w, h).fill(0x2e2438)
+  g.rect(0, 0, w, h * 0.68).fill(0x3c2f48)
+
+  const rows = 5, cols = 14
+  for (let r = 0; r < rows; r += 1) {
+    for (let c = 0; c < cols; c += 1) {
+      if ((r + c) % 2 === 0) g.rect((w / cols) * c, h * 0.7 + (h * 0.3 / rows) * r, w / cols, h * 0.3 / rows).fill({ color: 0xf4e9d0, alpha: 0.16 })
+    }
+  }
+
+  for (const x of [w * 0.14, w * 0.5, w * 0.86]) {
+    g.rect(x - w * 0.05, h * 0.08, w * 0.1, h * 0.4).fill(0x1a1424)
+    g.circle(x, h * 0.08, w * 0.05).fill(0x1a1424)
+    g.rect(x - w * 0.04, h * 0.09, w * 0.08, h * 0.38).fill({ color: 0x6a4a72, alpha: 0.5 })
+  }
+  g.circle(w * 0.5, h * 0.14, w * 0.018).fill(0xffe3a0)
+  for (let i = 0; i < 14; i += 1) g.circle(w * (0.36 + random() * 0.28), h * (0.1 + random() * 0.08), 1.4).fill({ color: 0xffe9c0, alpha: 0.75 })
 }
 
 /* ------------------------------------------------------------ characters --- */

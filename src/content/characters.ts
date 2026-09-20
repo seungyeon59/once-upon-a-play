@@ -1,4 +1,9 @@
 import type { Character } from '../state/types.ts'
+import { SNOW, HUNTSMAN, AUNTIE } from './snowWhiteCharacters.ts'
+import { CINDERS, WHISK, DAME } from './cinderellaCharacters.ts'
+
+export { SNOW, HUNTSMAN, AUNTIE } from './snowWhiteCharacters.ts'
+export { CINDERS, WHISK, DAME } from './cinderellaCharacters.ts'
 
 /**
  * Homage characters: the narrative roles come from the public-domain tale, the
@@ -167,7 +172,12 @@ export const CODEX_CHARACTERS: Character[] = [MOSS, BRAMBLE,
   },
 ]
 
-export const CHARACTERS: Character[] = [RED, WOLF, GRANDMA, VISITOR, ...CODEX_CHARACTERS]
+export const CHARACTERS: Character[] = [
+  RED, WOLF, GRANDMA, VISITOR,
+  SNOW, HUNTSMAN, AUNTIE,
+  CINDERS, WHISK, DAME,
+  ...CODEX_CHARACTERS,
+]
 
 export function getCharacter(id: string): Character | undefined {
   return CHARACTERS.find((character) => character.id === id)
