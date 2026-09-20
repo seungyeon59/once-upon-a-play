@@ -90,7 +90,7 @@ export function MapSelect({ tales, hasSave, onStart, onResume }: MapSelectProps)
           </button>
         ))}
 
-        {['Three houses on the hill', 'The deep, deep sea'].map((name) => (
+        {['Snow White', 'Cinderella'].map((name) => (
           <div key={name} className="map-card map-card--locked">
             <span className="map-card__art map-card__art--locked" aria-hidden="true" />
             <span className="map-card__body">
