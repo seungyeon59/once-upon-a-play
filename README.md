@@ -2,20 +2,40 @@
 
 **Step into a fairy tale and leave your own story behind.**
 
-Once upon a play is an interactive story game for children aged 9–12. Pick a role,
-explore an illustrated map, talk to its characters, and make choices that shape
-the ending. A drawing can become a new character in the story. When the tale is
-finished, the child can read and save an illustrated storybook as a PDF.
+Built by **Steel Hungry** at **SteelHacks XIII 2026** (University of Pittsburgh, Sep 19–20, 2026).
+
+Once upon a play is an interactive story game for children aged 9–12. Pick a
+world, explore an illustrated map, talk to its characters, and make choices
+that shape the ending. When a child wants something new, they can just ask
+for it — the story keeps generating.
+
+<p align="center">
+  <img src="docs/assets/screenshot-map-select.jpg" alt="Once upon a play — world select screen" width="720">
+</p>
+
+## Why we built this
+
+> "Kids aren't hungry for books anymore... Kids are losing their creativity
+> because of AI." — the fear we kept hearing.
+
+We think that's backwards. AI doesn't have to replace a child's creativity —
+it can be the tool that gives it somewhere to go. A kid who won't finish a
+book will finish a story here, because it's theirs: they're not reading it,
+they're authoring it.
 
 ## Try the story
 
-The first playable tale is **Little Red Riding Hood**, an original retelling.
-Play as Red, Gray the wolf, or a visitor. Talk to the cast, choose a path, and reach one of three endings.
+The first playable tale is **Little Red Riding Hood**, an original retelling,
+with **Snow White** and **Cinderella** also playable. Play as Red, Gray the
+wolf, or a visitor. Talk to the cast, choose a path, and reach one of three
+endings.
 
 Features:
 
 - Character dialogue with optional AI replies and scripted demo replies.
 - Story choices that change later scenes and the ending.
+- **"For the next scene, I want..."** — children describe what happens next
+  in their own words, and the story generates a new scene around it.
 - Ready-made companions or a character created from a photographed drawing.
 - Draggable characters and a layered 2.5D map that pans when you drag the background.
 - An illustrated storybook that can be printed or saved as a PDF.
@@ -23,6 +43,16 @@ Features:
 
 The artwork is original placeholder art drawn in code. The drawing scanner
 removes light paper in the browser; it does not use an image generation model.
+
+## How it's built
+
+<p align="center">
+  <img src="docs/assets/architecture.png" alt="Architecture: local storage, frontend, and backend/AI pipeline" width="820">
+</p>
+
+- **Frontend** — React + Zustand for UI state, Pixi.js for character and map rendering.
+- **Local storage** — static scene data, `localStorage` for session progress, IndexedDB for cached backgrounds.
+- **Backend & AI pipeline** — an Express API routes requests to Anthropic Claude for dialogue and scene generation, the Replicate API for background image generation, and ElevenLabs for text-to-speech.
 
 ## Run locally
 
@@ -120,6 +150,23 @@ npm test
 npm run build
 ```
 
-This is a playable prototype. It currently includes one tale and code-drawn
-art. Full 3D worlds, text-to-speech, shared accounts, and a parent dashboard
-are not part of this build.
+This is a playable prototype. It currently includes three tales and code-drawn
+art. Full 3D worlds, shared accounts, and a parent dashboard are not part of
+this build.
+
+## What we learned
+
+- **Exploration first.** Kids build stories best when they're exploring a
+  scene, not staring at a blank text box.
+- **Zero latency.** Even a few seconds of waiting kills the magic — instant
+  feedback is what keeps a child in the story.
+
+## Team — Steel Hungry
+
+<p align="center">
+  <img src="docs/assets/team-photo.jpg" alt="Team Steel Hungry at SteelHacks XIII" width="500">
+</p>
+
+Chiyoung Kim · Sumin Shim · Doyoung Heo · Seungyeon Back
+
+Built in 24 hours at **SteelHacks XIII**, University of Pittsburgh — September 19–20, 2026.
