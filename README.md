@@ -9,6 +9,10 @@ world, explore an illustrated map, talk to its characters, and make choices
 that shape the ending. When a child wants something new, they can just ask
 for it — the story keeps generating.
 
+**[Play the demo](https://once-upon-a-play.vercel.app/)** ·
+**[Watch the video](https://youtu.be/aSscBtHs2c8)** ·
+**[View the slides](docs/assets/SteelHacks_Presentation.pdf)**
+
 <p align="center">
   <img src="docs/assets/screenshot-map-select.jpg" alt="Once upon a play — world select screen" width="720">
 </p>
